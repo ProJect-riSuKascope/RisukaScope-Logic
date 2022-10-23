@@ -1,0 +1,29 @@
+output-file: 'spectrum.mem'
+length: 2.0e+6
+samplerate: 2.0e+4
+quant: 15
+spectrum:
+  -
+    freq: 0.01
+    ampl: 0.02
+  -
+    freq: 0.02
+    ampl: 0.02
+  -
+    freq: 0.03
+    ampl: 0.02
+  -
+    freq: 0.05
+    ampl: 0.02
+  -
+    freq: 0.10
+    ampl: 0.02
+  -
+    freq: 0.20
+    ampl: 0.02
+  -
+    freq: 0.30
+    ampl: 0.02
+noise:
+  enable: False
+  snr: -30

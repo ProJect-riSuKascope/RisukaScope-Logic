@@ -1,0 +1,93 @@
+# Register interface description file
+# Register access: 0 - RW, 1 - RO, 2 - WO
+# Field type: 0 - Update by register access only, 1 - Update with other signals
+
+description:
+  module-name: mod_a
+  module-desc: The analog modulator.
+  module-files:
+      - mod_a.v
+      - mod_a_core.v
+      - mod_a_regif.v
+      - mod_a_ssb.v
+      - mod_a_std.v
+
+interface:
+  signals:
+    write-address: waddr_s
+    write-strobe: wstrb_s
+    write-data: wdata_s
+
+    read-address: raddr_s
+    read-function: read_reg
+  params:
+    width: 4
+
+registers:
+  -
+    name: control
+    desc: Control register.
+    addr: 0
+    width: 4
+    access: 0
+
+    whole-field: 0
+
+    fields:
+      -
+        name: enable
+        bit: '0:0'
+        type: 0
+        desc: Analog demodulator enable.
+      -
+        name: mode
+        bit: '2:1'
+        type: 0
+        desc: Analog demodulator mode.\n00:AM\n01:FM\n10:PM\n11:SSB
+      -
+        name: sideband
+        bit: '4:4'
+        type: 0
+        desc: SSB demodulation sideband.\n0:LSB\n1:USB
+  -
+    name: sig_scale_coef
+    desc: Scale the input signal. The scale factor value is (sig_scale_coef / 32768). Only available in AM mode.
+    addr: 4
+    width: 4
+    access: 0
+    whole-field: 1
+
+    fields:
+      -
+        name: sig_scale_coef
+        bit: '31:0'
+        type: 2
+        desc: The scale factor.
+  -
+    name: sig_bias
+    desc: Adding a bias to the signal to make the modulated AM signal has a carrier component. Only available in AM mode.
+    addr: 4
+    width: 4
+    access: 0
+    whole-field: 1
+
+    fields:
+      -
+        name: sig_bias
+        bit: '31:0'
+        type: 2
+        desc: The bias value.
+  -
+    name: freq_conv_coef
+    desc: Frequency conversion coefficient. The frequency offset (in DDS control word) of the FM signal is (signal_value * freq_conv_coef) / (2 ^ VF_SCALE). Only available in FM mode.
+    addr: 4
+    width: 4
+    access: 0
+    whole-field: 1
+
+    fields:
+      -
+        name: freq_conv_coef
+        bit: '31:0'
+        type: 2
+        desc: The frequency conversion coefficient.

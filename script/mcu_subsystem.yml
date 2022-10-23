@@ -1,0 +1,15 @@
+# MCU Bus system description file
+# Real (root) master devices
+root-masters:
+  - core
+  - graphic_unit
+
+slaves:
+  top-matrix:
+    type: bus-matrix
+    devices:
+    - auto_spi:
+        start: 80000000
+        end: 8000ffff
+        master: core
+    - 

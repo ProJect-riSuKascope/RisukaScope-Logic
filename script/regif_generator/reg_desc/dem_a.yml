@@ -1,0 +1,69 @@
+# Register interface description file
+# Register access: 0 - RW, 1 - RO, 2 - WO
+# Field type: 0 - Update by register access only, 1 - Update with other signals
+
+description:
+  module-name: dem_a
+  module-desc: The analog demodulator.
+  module-files:
+      - dem_a.v
+      - dem_a_core.v
+      - dem_a_regif.v
+      - dem_a_ssb.v
+      - dem_a_std.v
+
+interface:
+  signals:
+    write-address: waddr_s
+    write-strobe: wstrb_s
+    write-data: wdata_s
+
+    read-address: raddr_s
+    read-function: read_reg
+  params:
+    width: 4
+
+registers:
+  -
+    name: control             # Name of the register
+    desc: Control register.   # Description of the register. Used to generate comments.
+    addr: 0                   # Address of the register.
+    width: 4                  # Width of the register.
+    count: 0                  # Count of the register. If count is not zero, a block RAM will be created.
+    access: 0                 # Access type of the register(WO, RO, RW).
+
+    fields:
+      -
+        name: enable
+        bit: '0:0'
+        type: 0
+        desc: Analog demodulator enable.
+      -
+        name: mode
+        bit: '2:1'
+        type: 0
+        desc: Analog demodulator mode.\n00:AM\n01:FM\n10:PM\n11:SSB
+      -
+        name: sideband
+        bit: '4:4'
+        type: 0
+        desc: SSB demodulation sideband.\n0:LSB\n1:USB
+      -
+        name: unbias
+        bit: '5:5'
+        type: 0
+        desc: Remove DC bias in the demodulated signal. Available in AM, FM and PM modes.
+  -
+    name: data_bias
+    desc: The DC bias value of the demodulated signal.
+    addr: 4
+    width: 4
+    count: 0
+    access: 0
+
+    fields:
+      -
+        name: data_bias_value
+        bit: '31:0'
+        type: 1
+        desc: DC bias value of the demodulated signal.

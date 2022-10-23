@@ -1,0 +1,77 @@
+# duc.yml
+# Register config file of Digital Up Conversion IP
+
+description:
+  module-name: duc
+  module-desc: The digital upconversion module.
+  module-files:
+      - duc.v
+      - duc_regif.v
+      - duc_core.v
+
+interface:
+  signals:
+    write-address: waddr_s
+    write-strobe: wstrb_s
+    write-data: wdata_s
+
+    read-address: raddr_s
+    read-function: read_reg
+  params:
+    width: 4
+
+registers:
+  -
+    name: control
+    desc: Control register.
+    addr: 0
+    width: 4
+    access: 0
+
+    fields:
+      -
+        name: enable
+        bit: '0:0'
+        type: 0
+        desc: Digital upconversion enable.
+      -
+        name: add_sub
+        bit: '1:1'
+        type: 0
+        desc: Sum up(0) or substract(1) the I/Q signal.
+      -
+        name: freq_ctrl
+        bit: '2:2'
+        type: 0
+        desc: Fixed frequency mode (0) or variable frequency mode (1).
+      -
+        name: phase_ctrl
+        bit: '3:3'
+        type: 0
+        desc: Fixed phase mode (0) or variable phase mode (1).
+  -
+    name: mixer_freq
+    desc: The frequency of DUC LO. In the fixed frequency mode, the mixer frequency is mixer_freq; In the variable frequency mode, the frequency is mixer_freq + input_value.
+    addr: 4
+    width: 4
+    access: 0
+
+    fields:
+      -
+        name: mixer_freq
+        bit: '31:0'
+        type: 0
+        desc: DUC LO frequency.
+  -
+    name: mixer_phase
+    desc: The phase of DUC LO. In the fixed phase mode, the LO phase is mixer_phase; In the variable phase mode, the LO phase is mixer_phase + input_value.
+    addr: 4
+    width: 4
+    access: 0
+
+    fields:
+      -
+        name: mixer_phase
+        bit: '31:0'
+        type: 0
+        desc: DUC LO phase.

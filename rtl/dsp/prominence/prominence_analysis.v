@@ -17,11 +17,7 @@
     limitations under the License.
 */
 module prominence_analysis #(
-    parameter DW = 16,
-
-    // AHB Bus address
-    parameter BUS_ADDR    = 32'h0000_0001,
-    parameter BUS_PERI_AW = 8
+    parameter DW = 16
 ) (
     // Global clock and reset
     input  wire clk,
@@ -29,10 +25,11 @@ module prominence_analysis #(
     input  wire ce,
 
     // AXI-Stream interface
-    input  wire signed [2*DW-1:0] tdata_s,
-    input  wire                   tuser_s,
-    input  wire                   tvalid_s,
-    output wire                   tready_s,
+    input  wire signed [DW-1:0] tdata_s,
+    input  wire                 tuser_s,
+    input  wire                 tlast_s,
+    input  wire                 tvalid_s,
+    output reg                  tready_s,
 
     // AHB Control Interface
     // HCLK, HRESETn are combined into global signals.
@@ -53,12 +50,16 @@ module prominence_analysis #(
     output reg             hresp_s,
     // Exlusive transfer is not available, thus HEXOKAY signal is not used.
 
-    input  wire            hsel_s
+    input  wire            hsel_s,
+
+    // Interrupt output
+    output wire            interrupt
 );
 
     // Peak/Valley/Flat detection
     reg  signed [15:0] val_last;                 // Last value
     reg  signed [15:0] diff, diff_last;          // Value difference
+    reg                frame_start, frame_end;   // Frame start & end
 
     always @(posedge clk, negedge reset_n) begin
         if(!reset_n) begin
@@ -66,6 +67,9 @@ module prominence_analysis #(
 
             diff      <= 0;
             diff_last <= 0;
+
+            frame_start <= 1'b0;
+            frame_end   <= 1'b0;
         end
         else begin
         if(ce) begin
@@ -73,6 +77,9 @@ module prominence_analysis #(
                 diff      <= tdata_s - val_last;
                 diff_last <= diff;
                 val_last  <= tdata_s;
+
+                frame_start <= tuser_s;
+                frame_end   <= tlast_s;
             end
         end
         end
@@ -84,7 +91,6 @@ module prominence_analysis #(
 
     // Index counter
     reg  [9:0]  idx, idx_last;          // Data index
-    reg         start;
 
     always @(posedge clk, negedge reset_n) begin
         if(!reset_n) begin
@@ -105,52 +111,52 @@ module prominence_analysis #(
         end
     end
 
-    // AXI-Stream ready feedback
-    assign tready_s = (stat == STAT_IDLE) || (stat == STAT_VALLEY) || (stat == STAT_PEAK);
-
-    // Register and control fields
-    // Number of the values to be sort
-    wire [3:0]  sort_count = reg_ctrl[19:16];
-
     // Registers
     reg  [31:0] reg_ctrl;
     reg  [31:0] reg_stat;
 
-    // Prominence buffer
-    reg  [47:0] prom_buff   [0:1023];
+    // Register and control fields
+    // Number of the values to be sort
+    wire [3:0]  sort_count    = reg_ctrl[19:16];
+    wire        start_oneshot = reg_ctrl[1];
+    wire        start_cont    = reg_ctrl[2];
+    wire        interrupt_en  = reg_ctrl[3];
 
     // Sort module signals
     reg  [15:0] prom_rdata;
     wire [15:0] prom_raddr;
 
     // Prominence FSM
-    localparam STAT_IDLE   = 3'b000;
-    localparam STAT_PEAK   = 3'b001;     // Find a peak
-    localparam STAT_VALLEY = 3'b010;     // Find a valley
-    localparam STAT_WRITE  = 3'b011;     // Write prominence data to buffer
-    localparam STAT_SORT   = 3'b100;
-    localparam STAT_SORTWR = 3'b101;
-    localparam STAT_CLEAR  = 3'b110;     // Clear the buffer
-    localparam STAT_DONE   = 3'b111;     // Empty state to set DONE flag in status register
+    localparam STAT_IDLE   = 4'b0000;
+    localparam STAT_PEAK   = 4'b0001;     // Find a peak
+    localparam STAT_VALLEY = 4'b0010;     // Find a valley
+    localparam STAT_WRPROM = 4'b0011;     // Write prominence data to buffer
+    localparam STAT_SORT   = 4'b0100;
+    localparam STAT_SORTWR = 4'b0101;
+    localparam STAT_CLEAR  = 4'b0110;     // Clear the buffer
+    localparam STAT_DONE   = 4'b0111;     // Empty state to set DONE flag in status register
+    localparam STAT_WAIT   = 4'b1000;     // Wait for data
+    localparam STAT_WRVAL  = 4'b1011;
+    localparam STAT_WRIDX  = 4'b1100;
+    localparam STAT_SORWAT = 4'b1101;     // Wait state inserted before sort
 
-    reg  [2:0] stat;
+    reg  [3:0] stat;
 
     // Prominences find
     reg  signed [15:0] peak_val;
     reg  signed [15:0] last_valley_val;
     // Prominence values
     reg  signed [15:0] prominence;
-    reg                prom_valid;
     reg  signed [9:0]  prom_idx;
     // Sort values
     reg         [7:0]  sort_idx;
     reg         [7:0]  sort_idx_max;
     reg  signed [15:0] sort_data;
     reg  signed [15:0] sort_max;
+    reg  signed [15:0] sort_max_last;
     reg         [3:0]  sort_cnt;
 
-    reg         [47:0] sorted [0:15];
-    reg         [47:0] sort_max_aux;
+    reg         [9:0]  sorted [0:15];
 
     always @(posedge clk, negedge reset_n) begin
         if(!reset_n) begin
@@ -162,18 +168,29 @@ module prominence_analysis #(
             prominence <= 0;
             prom_idx   <= 0;
 
-            prom_rdata <= 1'b0;
+            sort_idx      <= 0;
+            sort_idx_max  <= 0;
+            sort_max      <= 0;
+            sort_max_last <= 0;
+            sort_cnt      <= 0;
         end
         else begin
         if(ce) begin
             case(stat)
             STAT_IDLE:begin
-                if(start)
+                if(start_oneshot || start_cont)
                     stat <= STAT_CLEAR;
             end
             STAT_CLEAR:begin
                 // Clear buffer
-                if(prom_idx == 0) begin
+                if(prom_idx == 0)
+                    stat <= STAT_WAIT;
+                else begin
+                    prom_idx <= prom_idx - 1;
+                end
+            end
+            STAT_WAIT:begin
+                if(tuser_s && tvalid_s && tready_s) begin
                     if(diff > 0)
                         stat <= STAT_PEAK;
                     else
@@ -181,18 +198,13 @@ module prominence_analysis #(
 
                     last_valley_val <= val_last;
                 end
-                else begin
-                    prom_buff[prom_idx] <= 0;
-                    prom_idx            <= prom_idx - 1;
-                end
             end
             STAT_PEAK:begin
-                if(idx_last == 1023) begin
+                if(frame_end) begin
                     // Calculate the last prominence at the end of sequence
                     // Last value as peak
                     prominence <= val_last - last_valley_val;
-
-                    stat <= STAT_WRITE;
+                    stat <= STAT_WRPROM;
                 end
                 else if(peak) begin       // Peak found
                     peak_val <= val_last;
@@ -201,7 +213,7 @@ module prominence_analysis #(
                 end
             end
             STAT_VALLEY:begin
-                if(valley || (idx_last == 1023)) begin     // Valley found, or it's the end value
+                if(valley || frame_end) begin     // Valley found, or it's the end value
                     if((peak_val - val_last) > (peak_val - last_valley_val))
                         // Current valley is higher.
                         prominence <= peak_val - val_last;
@@ -209,50 +221,56 @@ module prominence_analysis #(
                         // The last valley is higher.
                         prominence <= peak_val - last_valley_val;
 
-                    stat <= STAT_WRITE;
+                    stat <= STAT_WRPROM;
                 end
             end
-            STAT_WRITE:begin
-                // Write prominence value to buffer
-                prom_buff[prom_idx] <= {peak_val, idx_last, prominence};
-                prom_idx            <= prom_idx + 1;
+            STAT_WRPROM:stat <= STAT_WRVAL;
+            STAT_WRVAL:stat <= STAT_WRIDX;
+            STAT_WRIDX:begin
+                prom_idx <= prom_idx + 1;
 
                 // Check index
-                if(idx_last == 1023)
-                    stat <= STAT_SORT;
+                if(frame_end) begin
+                    stat          <= STAT_SORWAT;
+                    // Set last maximum value to the maximum digit to update to the largest value
+                    sort_max_last <= (1 << (DW-1)) - 1;
+                end
                 else
                     stat <= STAT_PEAK;
             end
+            STAT_SORWAT:stat <= STAT_SORT;      // Interval state for sort data loading
             STAT_SORT:begin
-                if(sort_idx == 1023) begin
-                    stat          <= STAT_SORTWR;
-                    sort_max_aux <= prom_buff[sort_idx_max];
+                if(sort_idx == prom_idx) begin
+                    stat     <= STAT_SORTWR;
+                    sort_idx <= 0;
                 end
-                else begin
+                else
                     sort_idx  <= sort_idx + 1;
-                    sort_data <= prom_buff[sort_idx][15:0];
-                end
 
                 // Update maximum value
-                if(sort_data > sort_max) begin
+                if((sort_data > sort_max) && (sort_data < sort_max_last)) begin
                     sort_max     <= sort_data;
                     sort_idx_max <= sort_idx;
                 end
             end
             STAT_SORTWR:begin
                 // Stop sorting if count of sort value is fullfilled
-                if(sort_cnt == sort_count)
+                if(sort_cnt == sort_count) begin
+                    sort_cnt <= 0;
+                    sort_max <= 0;
+                    sort_idx <= 0;
+
                     stat     <= STAT_DONE;
+                end
                 else begin
                     // Record the value
-                    sorted[sort_cnt] <= sort_max_aux;
+                    sorted[sort_cnt] <= sort_idx_max;
 
-                    sort_cnt     <= sort_cnt + 1;
-                    sort_idx     <= 0;
-                    sort_idx_max <= 0;
-
-                    // Set the maximum value to 0 to find another maximum value
-                    prom_buff[sort_idx_max] <= 0;
+                    sort_max_last <= sort_max;
+                    sort_max      <= 0;
+                    sort_cnt      <= sort_cnt + 1;
+                    sort_idx      <= 0;
+                    sort_idx_max  <= 0;
 
                     stat <= STAT_SORT;
                 end
@@ -264,4 +282,124 @@ module prominence_analysis #(
         end
         end
     end
+
+    reg  [9:0]  buffer_addr_m;
+    reg  [15:0] buffer_wdata_m;
+    reg  [15:0] buffer_rdata_m;
+    reg         buffer_wr_m;
+
+    always @(*) begin
+        case(stat)
+        STAT_CLEAR:begin
+            tready_s    = 1'b0;
+
+            buffer_addr_m = prom_idx;
+            buffer_wdata_m = 0;
+            buffer_wr_m   = 1'b1;
+
+            sort_data = buffer_rdata_m;
+        end
+        STAT_PEAK, STAT_WAIT:begin
+            tready_s    = 1'b1;
+
+            buffer_addr_m = 'h0;
+            buffer_wdata_m = 0;
+            buffer_wr_m = 1'b0;
+
+            sort_data = buffer_rdata_m;
+        end
+        STAT_VALLEY:begin
+            tready_s    = ~frame_end;
+
+            buffer_addr_m = 'h0;
+            buffer_wdata_m = 0;
+            buffer_wr_m = 1'b0;
+
+            sort_data = buffer_rdata_m;
+        end
+        STAT_WRPROM:begin
+            tready_s    = 1'b0;
+
+            buffer_addr_m  = {2'b00, {prom_idx[7:0]}};
+            buffer_wdata_m = prominence;
+            buffer_wr_m   = 1'b1;
+
+            sort_data = buffer_rdata_m;
+        end
+        STAT_WRVAL:begin
+            tready_s    = 1'b0;
+
+            buffer_addr_m = {2'b01, {prom_idx[7:0]}};
+            buffer_wdata_m = peak_val;
+            buffer_wr_m   = 1'b1;
+
+            sort_data = buffer_rdata_m;
+        end
+        STAT_WRIDX:begin
+            tready_s    = 1'b0;
+
+            buffer_addr_m  = {2'b10, {prom_idx[7:0]}};
+            buffer_wdata_m = idx_last;
+            buffer_wr_m    = 1'b1;
+
+            sort_data = buffer_rdata_m;
+        end
+        STAT_SORWAT:begin
+            tready_s    = 1'b0;
+
+            buffer_addr_m  = {2'b00, 8'd0};
+            buffer_wdata_m = 0;
+            buffer_wr_m    = 1'b0;
+
+            sort_data = buffer_rdata_m;
+        end
+        STAT_SORT, STAT_SORTWR:begin
+            tready_s    = 1'b0;
+
+            buffer_addr_m  = {2'b00, {sort_idx[7:0]}};
+            buffer_wdata_m = 0;
+            buffer_wr_m    = 1'b0;
+
+            sort_data = buffer_rdata_m;
+        end
+        default:begin
+            tready_s = 1'b0;
+
+            buffer_addr_m  = 0;
+            buffer_wdata_m = 0;
+            buffer_wr_m    = 1'b0;
+
+            sort_data = 0;
+        end
+        endcase
+    end
+
+    // Prominence buffer, external access
+    wire [9:0]  buffer_addr_i = haddr_s[11:2];
+    reg  [15:0] buffer_rdata_i;
+
+    // Prominence buffer
+    // The buffer is devided into three 1024x16b BRAMs
+    // The syntheizer is quite silly
+    /* synthesis syn_ramstyle = "block_ram" */
+    reg  [16:0] prom_buff [0:767];
+
+    always @(posedge clk, negedge reset_n) begin
+        if(!reset_n) begin
+            buffer_rdata_m <= 0;
+            buffer_rdata_i <= 0;
+        end
+        else begin
+        if(ce) begin
+            buffer_rdata_i <= prom_buff[buffer_addr_i];
+            
+            if(buffer_wr_m)
+                prom_buff[buffer_addr_m] <= buffer_wdata_m;
+            else
+                buffer_rdata_m <= prom_buff[buffer_addr_m];
+        end
+        end
+    end
+
+    `include "ahb_intf_prominence.v"
 endmodule

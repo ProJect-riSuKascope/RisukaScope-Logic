@@ -56,7 +56,7 @@
     // ---------------------- Please DO NOT modify below this line ---------------------- 
     // AHB Interface
     // AHB signals
-    reg  [31:0] haddr_last;
+    reg  [15:0] haddr_last;
     reg         hwrite_last;
     reg  [31:0] hwdata_last;
 
@@ -79,11 +79,12 @@
 
                 'h1xxx:hrdata_s <= <memory>[haddr_s[15:0]];     // <memory> is mapped to 0x1000.
         */
-        casex(haddr_s[15:2])
-            'h00:data <= reg_ctrl;
-            'h01:data <= reg_stat;
-            'h1x:data <= prom_buff[addr[11:2]];
-            'h2x:data <= sorted[addr[5:2]];
+        casex(haddr_last)
+            'h0000:hrdata_s  = reg_ctrl;
+            'h0004:hrdata_s  = reg_stat;
+            'h1xxx:hrdata_s  = buffer_rdata_i;
+            'h2xxx:hrdata_s  = sorted[haddr_last[5:2]];
+            default:hrdata_s = reg_ctrl;
         endcase
     end
     endtask
@@ -97,15 +98,13 @@
             'h0:reg_0 <= hwdata_s;
             'h1xxx:<memory>[haddr_s[15:0]] <= hwdata_s;
         */
-        casex(haddr_last[15:2])
-            'h00:reg_ctrl <= data;
-            'h01:reg_stat <= data;
+        casex(haddr_last)
+            'h00:reg_ctrl <= hwdata_s;
+            'h04:reg_stat <= hwdata_s;
             // The buffers are not available to write.
         endcase
     end
     endtask
-
-    assign ahb_writeable = 1'b1;
 
     task reg_reset_ahb();
     begin
@@ -136,9 +135,15 @@
                 if(<DONE_CONDITION>)
                     reg_stat[1] <= 1'b1;
         */
-        target[1] <= (stat == STAT_DONE);
+        if(stat == STAT_DONE) begin
+            reg_ctrl[1] <= 1'b0;        // Clear one-shot enable bit
+            reg_stat[1] <= 1'b1;        // Set status flag
+        end
     end
     endtask
+
+    // Interrupts
+    assign interrupt = interrupt_en || reg_stat[1];
 
     // ---------------------- Please DO NOT modify below this line ---------------------- 
 
@@ -154,18 +159,11 @@
     begin
         if(hwrite_s)
             ahb_stat <= AHB_WRITE;
-        else begin
-            // Fetch data from read buffer
-            if((haddr_last == haddr_s) && ahb_writeable)
-                hrdata_s <= hwdata_s;
-            else
-                reg_read_ahb();
-
+        else
             ahb_stat <= AHB_READ;
-        end
 
         // Record last address and data
-        haddr_last  <= haddr_s;
+        haddr_last  <= haddr_s[15:0];
     end
     endtask
 
@@ -173,7 +171,6 @@
         if(!reset_n) begin
             // Reset AHB interface
             haddr_last  <= 0;
-            hrdata_s    <= 'h0;
 
             // Reset registers
             reg_reset_ahb();
@@ -185,13 +182,10 @@
             case(ahb_stat)
                 AHB_IDLE, AHB_READ:begin
                     // Nothing to do
-                    if(hsel_s) begin
+                    if(hsel_s)
                         ahb_transcation();
-                    end
-                    else begin
-                        ahb_stat <= AHB_IDLE;
-                        reg_update_ahb();
-                    end
+
+                    reg_update_ahb();
                 end
                 AHB_WRITE:begin
                     if(hsel_s) begin
@@ -211,20 +205,40 @@
 
     always @(*) begin
         case(ahb_stat)
-            AHB_IDLE, AHB_READ:begin
+            AHB_IDLE:begin
+                hrdata_s    = 0;
+
+                hreadyout_s = 1'b1;
+                hresp_s     = 1'b0;
+            end
+            AHB_READ:begin
+                casex(haddr_last)
+                'h0000:hrdata_s  = reg_ctrl;
+                'h0004:hrdata_s  = reg_stat;
+                'h1xxx:hrdata_s  = buffer_rdata_i;
+                'h2xxx:hrdata_s  = sorted[haddr_last[5:2]];
+                default:hrdata_s = reg_ctrl;
+                endcase
+
                 hreadyout_s = 1'b1;
                 hresp_s     = 1'b0;
             end
             AHB_WRITE:begin
+                hrdata_s    = 0;
+
                 hresp_s     = 1'b0;
                 hreadyout_s = 1'b1;
             end
             AHB_ERROR:begin
+                hrdata_s    = 0;
+
                 // Error stage 1
                 hresp_s     = 1'b1;
                 hreadyout_s = 1'b0;
             end
             default:begin
+                hrdata_s    = 0;
+
                 hresp_s     = 1'b0;
                 hreadyout_s = 1'b1;
             end

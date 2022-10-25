@@ -1,4 +1,5 @@
 proj/*
 sim/*
 tb/infrastructure/commerical/*
+rtl/commerical/*
 *.m2d

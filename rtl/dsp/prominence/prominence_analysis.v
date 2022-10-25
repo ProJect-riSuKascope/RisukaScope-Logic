@@ -57,29 +57,29 @@ module prominence_analysis #(
 );
 
     // Peak/Valley/Flat detection
-    reg  signed [15:0] val_last;                 // Last value
+    reg  signed [15:0] val_last, val_last_1;     // Last value
     reg  signed [15:0] diff, diff_last;          // Value difference
     reg                frame_start, frame_end;   // Frame start & end
 
     always @(posedge clk, negedge reset_n) begin
         if(!reset_n) begin
-            val_last <= 0;
+            val_last    <= 0;
+            val_last_1  <= 0;
 
-            diff      <= 0;
-            diff_last <= 0;
+            diff        <= 0;
+            diff_last   <= 0;
 
             frame_start <= 1'b0;
-            frame_end   <= 1'b0;
         end
         else begin
         if(ce) begin
             if(tvalid_s && tready_s) begin
-                diff      <= tdata_s - val_last;
-                diff_last <= diff;
-                val_last  <= tdata_s;
+                diff        <= tdata_s - val_last;
+                diff_last   <= diff;
+                val_last    <= tdata_s;
+                val_last_1  <= val_last;
 
                 frame_start <= tuser_s;
-                frame_end   <= tlast_s;
             end
         end
         end
@@ -145,18 +145,35 @@ module prominence_analysis #(
     // Prominences find
     reg  signed [15:0] peak_val;
     reg  signed [15:0] last_valley_val;
+
+    wire signed [16:0] prom_left      = peak_val - last_valley_val;
+    wire signed [16:0] prom_right     = peak_val - val_last_1;
+    wire        [15:0] prom_left_u    = prom_left[15:0];
+    wire        [15:0] prom_right_u   = prom_left[15:0];
+
     // Prominence values
     reg  signed [15:0] prominence;
     reg  signed [9:0]  prom_idx;
     // Sort values
     reg         [7:0]  sort_idx;
     reg         [7:0]  sort_idx_max;
-    reg  signed [15:0] sort_data;
-    reg  signed [15:0] sort_max;
-    reg  signed [15:0] sort_max_last;
+    reg         [15:0] sort_data;
+    reg         [15:0] sort_max;
+    reg         [15:0] sort_max_last;
     reg         [3:0]  sort_cnt;
 
     reg         [9:0]  sorted [0:15];
+
+    always @(posedge clk, negedge reset_n) begin
+        if(!reset_n)
+            frame_end <= 1'b0;
+        else begin
+            if(tvalid_s && tready_s) begin
+                if((stat != STAT_WRPROM) && (stat != STAT_WRVAL) && (stat != STAT_WRIDX))
+                    frame_end <= tlast_s;
+            end
+        end
+    end
 
     always @(posedge clk, negedge reset_n) begin
         if(!reset_n) begin
@@ -190,36 +207,38 @@ module prominence_analysis #(
                 end
             end
             STAT_WAIT:begin
-                if(tuser_s && tvalid_s && tready_s) begin
+                if(frame_start) begin
                     if(diff > 0)
                         stat <= STAT_PEAK;
                     else
                         stat <= STAT_VALLEY;
 
-                    last_valley_val <= val_last;
+                    last_valley_val <= val_last_1;
                 end
             end
             STAT_PEAK:begin
                 if(frame_end) begin
                     // Calculate the last prominence at the end of sequence
                     // Last value as peak
-                    prominence <= val_last - last_valley_val;
+                    prominence <= val_last_1 - last_valley_val;
                     stat <= STAT_WRPROM;
                 end
                 else if(peak) begin       // Peak found
-                    peak_val <= val_last;
+                    peak_val <= val_last_1;
 
                     stat <= STAT_VALLEY;
                 end
             end
             STAT_VALLEY:begin
                 if(valley || frame_end) begin     // Valley found, or it's the end value
-                    if((peak_val - val_last) > (peak_val - last_valley_val))
+                    if(last_valley_val > val_last_1)
                         // Current valley is higher.
-                        prominence <= peak_val - val_last;
+                        prominence <= prom_right_u;
                     else
                         // The last valley is higher.
-                        prominence <= peak_val - last_valley_val;
+                        prominence <= prom_left_u;
+
+                    last_valley_val <= val_last_1;
 
                     stat <= STAT_WRPROM;
                 end
@@ -233,7 +252,7 @@ module prominence_analysis #(
                 if(frame_end) begin
                     stat          <= STAT_SORWAT;
                     // Set last maximum value to the maximum digit to update to the largest value
-                    sort_max_last <= (1 << (DW-1)) - 1;
+                    sort_max_last <= (1 << DW) - 1;
                 end
                 else
                     stat <= STAT_PEAK;
@@ -250,7 +269,7 @@ module prominence_analysis #(
                 // Update maximum value
                 if((sort_data > sort_max) && (sort_data < sort_max_last)) begin
                     sort_max     <= sort_data;
-                    sort_idx_max <= sort_idx;
+                    sort_idx_max <= sort_idx - 1;
                 end
             end
             STAT_SORTWR:begin

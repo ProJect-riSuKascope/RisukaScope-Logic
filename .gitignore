@@ -1,5 +1,16 @@
-proj/*
-sim/*
-tb/infrastructure/commerical/*
-rtl/commerical/*
+proj/**
+sim/**
+tb/infrastructure/commerical/**
+rtl/commerical/**
+
+# AHB FRBM instruction
 *.m2d
+
+# Output of gowin IP cores
+# FFT
+rtl/dsp/fft/ip/fft/**
+!fft_ip.ipc
+rtl/dsp/fft/ip/fifo_fft_in/**
+!fifo_fft_in.ipc
+rtl/dsp/fft/ip/fifo_fft_out/**
+!fifo_fft_out.ipc

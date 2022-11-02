@@ -1,0 +1,40 @@
+/*
+// Word 0 - Common register
+{reg:[
+  {'bits':12, 'name':'y0', 'attr':'y start' },
+  {'bits':12, 'name':'y1', 'attr':'y end' },
+  {'bits':8, 'name':'x0[7:0]', 'attr':'x start part1' }
+]}
+*/
+/*
+// Word 1 - String
+{reg:[
+  {'bits':4, 'name':'x0[11:8]', 'attr':'x start part2' },
+  {'bits':12, 'name':'str_addr', 'attr':'String start address' },
+  {'bits':4, 'name':'opcode', 'attr':['Opcode', '0000'] },
+  {'bits':4, 'name':'fg_color', 'attr':'Foreground' },
+  {'bits':4, 'name':'bg_color', 'attr':'Background' },
+  {'bits':4, 'name':'bg_color', 'attr':'Scale' },
+]}
+*/
+/*
+// Word 1 - Box
+{reg:[
+  {'bits':4, 'name':'x0[11:8]', 'attr':'x start part2' },
+  {'bits':12, 'name':'w', 'attr':'Box width' },
+  {'bits':4, 'name':'opcode', 'attr':['Opcode', '0001'] },
+  {'bits':4, 'name':'fg_color', 'attr':'Foreground' },
+  {'bits':4, 'name':'bg_color', 'attr':'Background' },
+  {'bits':1, 'name':'F', 'attr':'Fill' },
+  {'bits':3, 'name':'lwid', 'attr':'Line width' },
+]}
+*/
+// Word 1 - Chart
+{reg:[
+  {'bits':4, 'name':'x0[11:8]', 'attr':'x start part2' },
+  {'bits':4, 'name':'nx', 'attr':'Shift x' },
+  {'bits':8, 'name':'kx', 'attr':'Factor x' },
+  {'bits':4, 'name':'opcode', 'attr':'Opcode' },
+  {'bits':4, 'name':'ny', 'attr':'Shift y' },
+  {'bits':8, 'name':'ky', 'attr':'Factor y' }
+]}

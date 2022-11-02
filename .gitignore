@@ -1,19 +1,19 @@
-proj/**
-sim/**
-tb/infrastructure/commerical/
-rtl/commerical/**
+proj
+sim
+tb/infrastructure/commerical
+rtl/commerical
 
 # AHB FRBM instruction
 *.m2d
 
 # Output of gowin IP cores
 # FFT
-rtl/dsp/fft/ip/fft/
+rtl/dsp/fft/ip/fft
 !fft_ip.ipc
-rtl/dsp/fft/ip/fifo_fft_in/
+rtl/dsp/fft/ip/fifo_fft_in
 !fifo_fft_in.ipc
-rtl/dsp/fft/ip/fifo_fft_out/
+rtl/dsp/fft/ip/fifo_fft_out
 !fifo_fft_out.ipc
-rtl/subsystem/ddr3_2_ahb/
-rtl/subsystem/frame_buffer_read/
+rtl/subsystem/ddr3_2_ahb
+rtl/subsystem/frame_buffer_read
 rtl/subsystem/graphic/ip/fifo_intf

@@ -68,10 +68,6 @@ module chart_unit(
         end
     end
 
-    always @(*) begin
-        
-    end
-
     assign buff_addr = x;
 
     // x calculation

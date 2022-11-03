@@ -59,16 +59,16 @@ module stream_2_video_out (
             y <= 0;
         end
         else begin
-            if(y == PIX_V_TOTAL - 1)
-                y <= 0;
-            else begin
-                y <= y + 1;
+            if(x == PIX_H_TOTAL - 1) begin
+                x <= 0;
 
-                if(x == PIX_H_TOTAL - 1)
-                    x <= 0;
+                if(y == PIX_V_TOTAL - 1)
+                    y <= 0;
                 else
-                    x <= x + 1;
+                    y <= y + 1;
             end
+            else
+                x <= x + 1;
         end
     end
 
@@ -103,6 +103,10 @@ module stream_2_video_out (
             vblank = 1'b1;
         else
             vblank = 1'b0;
+
+        video_g = sdata[5:0];
+        video_b = sdata[10:6];
+        video_r = sdata[15:11];
     end
 
     // Video fetch interface

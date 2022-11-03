@@ -16,13 +16,13 @@ rtl/dsp/fft/ip/fifo_fft_out
 !fifo_fft_out.ipc
 
 # Graphic IPs
-rtl/subsystem/graphic/ip/hdmi_tx
+rtl/graphic/ip/hdmi_tx
 !hdmi_tx.ipc
-rtl/subsystem/graphic/ip/vdma
+rtl/graphic/ip/vdma
 !vdma.ipc
 
 # MCU core
-rtl/subsystem/mcu/ip/gowin_picorv32
+rtl/mcu/ip/gowin_picorv32
 !Gowin_PicoRV32_Top.ipc
 
 # Legacy subsystem IPs

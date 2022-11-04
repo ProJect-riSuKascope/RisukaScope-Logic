@@ -3,7 +3,7 @@
     Receiver compensation
 */
 
-module fft_window #(
+module receiver_compensation #(
     parameter DW       = 16,
     parameter MEM_FILE = "test.mem",
     parameter DATA_CNT = 1024
@@ -15,11 +15,13 @@ module fft_window #(
     input  wire [DW-1:0] tdata_s,
     input  wire          tvalid_s,
     input  wire          tlast_s,
+    input  wire          tuser_s,
     input  wire          tready_s,
 
     // Output AXI-Stream
     output reg  [DW-1:0] tdata_m,
     output reg           tlast_m,
+    output reg           tuser_m,
     output reg           tvalid_m,
     input  wire          tready_m,
 
@@ -39,8 +41,10 @@ module fft_window #(
 
     output reg  [31:0]     hrdata_s,
     output reg  [31:0]     hreadyout_s,
-    output reg             hresp_s
+    output reg             hresp_s,
     // Exlusive transfer is not available, thus HEXOKAY signal is not used.
+
+    input  wire            hsel_s
 );
 
 
@@ -49,9 +53,9 @@ module fft_window #(
     reg         [DW-1:0] data_0;
     reg         [9:0]    idx;
 
-    reg                  valid_0;
-    reg                  valid_1;
+    reg                  valid_0, valid_1;
     reg                  last_0;
+    reg                  user_0, user_1;
 
     always @(posedge clk, negedge reset_n) begin
         if(!reset_n) begin
@@ -61,8 +65,9 @@ module fft_window #(
 
             valid_0 <= 1'b0;
             valid_1 <= 1'b0;
-
             last_0  <= 1'b0;
+            user_0  <= 1'b0;
+            user_1  <= 1'b0;
         end
         else begin
             if(tvalid_s && tready_s) begin
@@ -79,6 +84,8 @@ module fft_window #(
 
             valid_0 <= tvalid_s;
             valid_1 <= valid_0;
+            user_0  <= tuser_s;
+            user_1  <= user_0;
         end
     end
 
@@ -119,6 +126,7 @@ module fft_window #(
             tdata_m  <= 0;
             tvalid_m <= 1'b0;
             tlast_m  <= 1'b0;
+            tuser_m  <= 1'b0;
         end
         else begin
             if(tvalid_m && tready_m) begin
@@ -127,6 +135,7 @@ module fft_window #(
 
             tvalid_m <= valid_1;
             tlast_m  <= last_0;
+            tuser_m  <= user_0;
         end
     end
 

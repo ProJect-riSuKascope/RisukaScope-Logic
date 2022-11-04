@@ -176,7 +176,7 @@ module dsp_subsystem(
         .HRDATA2    (hrdata_cic_comp ),
 
         .HSEL3      (hsel_fft_win ),
-        .HREADYOUT3 (hreadyout_cic_comp ),
+        .HREADYOUT3 (hreadyout_fft_win ),
         .HRESP3     (hresp_fft_win ),
         .HRDATA3    (hrdata_fft_win ),
 
@@ -252,12 +252,12 @@ module dsp_subsystem(
       .tvalid_m (tvalid_decimated ),
       .tready_m (tready_decimated ),
 
-      .haddr_s     (haddr_s ),
-      .hburst_s    (hburst_s ),
-      .hsize_s     (hsize_s ),
-      .htrans_s    (htrans_s ),
-      .hwdata_s    (hwdata_s ),
-      .hwrite_s    (hwrite_s ),
+      .haddr_s     (haddr_m_syncout ),
+      .hburst_s    (hburst_syncout ),
+      .hsize_s     (hsize_syncout ),
+      .htrans_s    (htrans_syncout ),
+      .hwdata_s    (hwdata_syncout ),
+      .hwrite_s    (hwrite_syncout ),
 
       .hrdata_s    (hrdata_cic ),
       .hreadyout_s (hreadyout_cic ),
@@ -265,12 +265,220 @@ module dsp_subsystem(
       .hsel_s      (hsel_cic)
     );
 
-    // TODO: Insert CIC compensation filter here
+    wire [15:0] tdata_dec_comped;
+    wire        tvalid_dec_comped;
+    wire        tready_dec_comped;
 
-    // TODO: Insert Stream hub here
+    fir_bram_mc #(
+        .DW(16 ),
+        .MEM_FILE (MEM_FILE_CICC )
+    ) fir_cic_comp(
+        .clk     (hclk ),
+        .reset_n (hresetn ),
+        .ce      (1'b1 ),
 
-    // TODO: Insert FFT window here
+        .tdata_s  (tdata_decimated ),
+        .tvalid_s (tvalid_decimated ),
+        .tready_s (tready_decimated ),
 
+        .tdata_m  (tdata_dec_comped ),
+        .tvalid_m (tvalid_dec_comped ),
+        .tready_m (tready_dec_comped ),
 
+        .haddr_s     (haddr_m_syncout ),
+        .hburst_s    (hburst_syncout ),
+        .hsize_s     (hsize_syncout ),
+        .htrans_s    (htrans_syncout ),
+        .hwdata_s    (hwdata_syncout ),
+        .hwrite_s    (hwrite_syncout ),
+
+        .hrdata_s    (hrdata_cic_comp ),
+        .hreadyout_s (hreadyout_cic_comp ),
+        .hresp_s     (hresp_cic_comp ),
+
+        .hsel_s      (hsel_cic_comp)
+    );
   
+    wire [15:0] tdata_framed;
+    wire        tlast_framed;
+    wire        tvalid_framed;
+    wire        tready_framed;
+
+    frame_generation #(
+        .DW(16),
+        .FRAME_LEN (1024)
+    ) frame_div(
+        .clk     (hclk ),
+        .reset_n (hresetn ),
+        .ce      (1'b1 ),
+
+        .tdata_s  (tdata_dec_comped ),
+        .tvalid_s (tvalid_dec_comped ),
+        .tready_s (tready_dec_comped ),
+
+        .tdata_m  (tdata_framed ),
+        .tlast_m  (tlast_framed ),
+        .tvalid_m (tvalid_framed ),
+        .tready_m (tready_framed ),
+
+        .ext_sync (1'b0)
+    );
+  
+
+    wire [15:0] tdata_fft_win;
+    wire        tlast_fft_win;
+    wire        tuser_fft_win;
+    wire        tvalid_fft_win;
+    wire        tready_fft_win;
+
+    fft_window #(
+        .DW      (16),
+        .MEM_FILE(MEM_FILE_FFTW ),
+        .DATA_CNT(1024 )
+    ) fft_win_0 (
+        .clk     (hclk ),
+        .reset_n (hresetn ),
+
+        .tdata_s  (tdata_framed ),
+        .tvalid_s (tvalid_framed ),
+        .tlast_s  (tlast_framed ),
+        .tready_s (tready_framed ),
+
+        .tdata_m  (tdata_fft_win ),
+        .tlast_m  (tlast_fft_win ),
+        .tvalid_m (tvalid_fft_win ),
+        .tready_m (tready_fft_win ),
+
+        .haddr_s     (haddr_m_syncout ),
+        .hburst_s    (hburst_syncout ),
+        .hsize_s     (hsize_syncout ),
+        .htrans_s    (htrans_syncout ),
+        .hwdata_s    (hwdata_syncout ),
+        .hwrite_s    (hwrite_syncout ),
+
+        .hrdata_s    (hrdata_fft_win ),
+        .hreadyout_s (hreadyout_fft_win ),
+        .hresp_s     (hresp_fft_win),
+
+        .hsel_s      (hsel_fft_win)    
+    );
+
+    wire [15:0] tdata_fft;
+    wire        tlast_fft;
+    wire        tuser_fft;
+    wire        tvalid_fft;
+    wire        tready_fft;
+
+    fft_wrapper fft (
+        .clk     (hclk ),
+        .reset_n (hresetn ),
+        .ce      (1'b1 ),
+
+        .tdata_s  (tdata_fft_win ),
+        .tlast_s  (tlast_fft_win ),
+        .tuser_s  (tuser_fft_win ),
+        .tvalid_s (tvalid_fft_win ),
+        .tready_s (tready_fft_win ),
+
+        .tdata_m  (tdata_fft ),
+        .tuser_m  (tuser_fft ),
+        .tlast_m  (tlast_fft ),
+        .tvalid_m (tvalid_fft ),
+        .tready_m (tready_fft )
+    );
+
+    wire [15:0] tdata_recv_comp;
+    wire        tlast_recv_comp;
+    wire        tuser_recv_comp;
+    wire        tvalid_recv_comp;
+    wire        tready_recv_comp;
+
+    receiver_compensation #(
+      .DW       (16),
+      .MEM_FILE (MEM_FILE ),
+      .DATA_CNT (1024 )
+    ) rec_comp_0(
+        .clk     (hclk ),
+        .reset_n (hresetn ),
+        .ce      (1'b1 ),
+
+        .tdata_s  (tdata_fft ),
+        .tlast_s  (tlast_fft ),
+        .tuser_s  (tuser_fft ),
+        .tvalid_s (tvalid_fft ),
+        .tready_s (tready_fft ),
+
+        .tdata_m  (tdata_recv_comp ),
+        .tlast_m  (tlast_recv_comp),
+        .tuser_m  (tuser_recv_comp),
+        .tvalid_m (tvalid_recv_comp ),
+        .tready_m (tready_recv_comp ),
+
+        .haddr_s     (haddr_m_syncout ),
+        .hburst_s    (hburst_syncout ),
+        .hsize_s     (hsize_syncout ),
+        .htrans_s    (htrans_syncout ),
+        .hwdata_s    (hwdata_syncout ),
+        .hwrite_s    (hwrite_syncout ),
+
+        .hrdata_s    (hrdata_recv_comp ),
+        .hreadyout_s (hreadyout_recv_comp ),
+        .hresp_s     (hresp_recv_comp),
+
+        .hsel_s      (hsel_recv_comp)
+    );
+  
+    // Analysis modules
+    stream_buffer spect_buff (
+        .clk     (hclk ),
+        .reset_n (hresetn ),
+        .ce      (1'b1 ),
+
+        .tdata_s  (tdata_recv_comp ),
+        .tlast_s  (tlast_recv_comp ),
+        .tuser_s  (tuser_recv_comp ),
+        .tvalid_s (tvalid_recv_comp ),
+        .tready_s ( ),              // The bus is controlled by prominence analysis module
+
+        .haddr_s     (haddr_m_syncout ),
+        .hburst_s    (hburst_syncout ),
+        .hsize_s     (hsize_syncout ),
+        .htrans_s    (htrans_syncout ),
+        .hwdata_s    (hwdata_syncout ),
+        .hwrite_s    (hwrite_syncout ),
+
+        .hrdata_s    (hrdata_spect_buff ),
+        .hreadyout_s (hreadyout_spect_buff ),
+        .hresp_s     (hresp_spect_buff ),
+
+        .hsel_s      (hsel_spect_buff)
+    );
+
+    prominence_analysis #(
+      .DW (16 )
+    )prom (
+        .clk     (hclk ),
+        .reset_n (hresetn ),
+        .ce      (1'b1 ),
+
+        .tdata_s  (tdata_recv_comp ),
+        .tlast_s  (tlast_recv_comp ),
+        .tuser_s  (tuser_recv_comp ),
+        .tvalid_s (tvalid_recv_comp ),
+        .tready_s (tready_recv_comp),
+
+        .haddr_s     (haddr_m_syncout ),
+        .hburst_s    (hburst_syncout ),
+        .hsize_s     (hsize_syncout ),
+        .htrans_s    (htrans_syncout ),
+        .hwdata_s    (hwdata_syncout ),
+        .hwrite_s    (hwrite_syncout ),
+
+        .hrdata_s    (hrdata_prom ),
+        .hreadyout_s (hreadyout_prom ),
+        .hresp_s     (hresp_prom ),
+        .hsel_s      (hsel_prom ),
+
+        .interrupt   (interrupts[0])
+    );
 endmodule

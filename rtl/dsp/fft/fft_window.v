@@ -20,6 +20,7 @@ module fft_window #(
     // Output AXI-Stream
     output reg  [DW-1:0] tdata_m,
     output reg           tlast_m,
+    output reg           tuser_m,
     output reg           tvalid_m,
     input  wire          tready_m,
 
@@ -115,14 +116,16 @@ module fft_window #(
             tdata_m  <= 0;
             tvalid_m <= 1'b0;
             tlast_m  <= 1'b0;
+            tuser_m  <= 1'b0;
         end
         else begin
             if(tvalid_m && tready_m) begin
                 tdata_m <= result[DW*2-1:0];
+                tlast_m <= last_0;
+                tuser_m <= tlast_m;
             end
 
             tvalid_m <= valid_1;
-            tlast_m  <= last_0;
         end
     end
 

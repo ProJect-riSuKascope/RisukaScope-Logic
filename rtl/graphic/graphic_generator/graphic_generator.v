@@ -18,7 +18,9 @@
 */
 `define DEBUG_INST
 
-module graphic_generator(
+module graphic_generator#(
+    parameter INST_BUFFER_MIF = "test.mem"
+)(
     input  wire hclk,
     input  wire hresetn,
     input  wire ce,
@@ -53,8 +55,8 @@ module graphic_generator(
     input  wire        tready_m
 );
     // Screen parameters
-    localparam ACTIVE_HORI = 1024;
-    localparam ACTIVE_VERT = 768;
+    localparam ACTIVE_HORI = 320;
+    localparam ACTIVE_VERT = 240;
 
     // AHB Access
     reg  [15:0] haddr_last;
@@ -68,6 +70,11 @@ module graphic_generator(
     reg  [8:0]  pc;
 
     reg  [31:0] inst[0:511];
+    `ifdef DEBUG_INST
+    initial begin
+        $readmemh(INST_BUFFER_MIF, inst);
+    end
+    `endif      // DEBUG_INST
 
     wire [7:0]  inst_ar = pc;
     reg  [7:0]  inst_r;
@@ -135,6 +142,14 @@ module graphic_generator(
 
     // Palette
     reg  [15:0] palette[0:15];
+    `ifdef DEBUG_INST
+    integer i;
+    initial begin
+        for(i = 0; i < 16;i = i + 1)
+            palette[i] <= {$random} % 65536;
+    end
+    `endif
+
     reg  [15:0] palette_w;
     reg         palette_we;
 
@@ -321,7 +336,7 @@ module graphic_generator(
         .ky        (chart_ky),
         .color_0   (color_0),
         .color_1   (color_1),
-        .t         (chart_ty),
+        .waterfall (chart_ty),
 
         // Pixel output
         .dx        (pix_chart_x),
@@ -349,7 +364,7 @@ module graphic_generator(
         .ky        (chart_ky),
         .color_0   (color_0),
         .color_1   (color_1),
-        .t         (chart_ty),
+        .waterfall (chart_ty),
 
         // Pixel output
         .dx        (pix_chart_x),
@@ -431,6 +446,10 @@ module graphic_generator(
             word_2 <= 32'h0;
 
             hori_cnt <= 0;
+
+            tdata_m  <= 16'h0;
+
+            stat <= STAT_IDLE;
         end
         else begin
             case(stat)
@@ -442,6 +461,7 @@ module graphic_generator(
                 word_0 <= inst[pc];
                 pc     <= pc + 1;
                 stat   <= STAT_FECH1;
+                hori_cnt <= 0;
             end
             STAT_FECH1:begin
                 if(opcode == 3'b100) begin         // Return
@@ -473,7 +493,6 @@ module graphic_generator(
             STAT_WAIT:begin
                 if(done) begin
                     stat     <= STAT_FECH0;
-                    hori_cnt <= 0;
                 end
 
                 // Line buffer write
@@ -537,6 +556,15 @@ module graphic_generator(
             tlast_m  = (hori_cnt == ACTIVE_HORI - 1);
             tuser_m  = (y == 0) && (hori_cnt == 0);
             tvalid_m = 1'b1;
+        end
+        default:begin
+            // Control
+            inst_start = 1'b0;
+
+            // AXI-Stream interface
+            tlast_m    = 1'b0;
+            tuser_m    = 1'b0;
+            tvalid_m   = 1'b0;
         end
         endcase
     end

@@ -14,9 +14,9 @@ module graphic_unit_model#(
 
     // Common outputs
     output reg  [11:0] dx,
-    output reg         wr,
+    output wire        wr,
     output wire        done,
-    output reg         data,
+    output reg  [15:0] data,
 
     // Specific parameters
     // String & box
@@ -77,6 +77,8 @@ module graphic_unit_model#(
 
             cycles <= 1'b0;
             stat   <= STAT_IDLE;
+            dx     <= 0;
+            data   <= 16'h0;
         end
         else begin
             case(stat)
@@ -100,10 +102,13 @@ module graphic_unit_model#(
                 if(dx == w)
                     stat <= STAT_END;
                 else
-                    w    <= w + 1;
+                    dx   <= dx + 1;
+
+                data <= {$random} % 65536;
             end
             STAT_END:begin
                 stat <= STAT_IDLE;
+                dx   <= 0;
             end
             endcase
             
@@ -112,4 +117,5 @@ module graphic_unit_model#(
     end
 
     assign done = (stat == STAT_END);
+    assign wr   = (stat == STAT_PROCS);
 endmodule

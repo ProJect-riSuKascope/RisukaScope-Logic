@@ -2,8 +2,9 @@
     GraphicCompiler.py
     Graphic Compiler
 '''
-from tabnanny import verbose
-from GraphicInstructions import GIBox, GIString, GIJump, GIChart, GIWrite
+import sys, getopt, os
+import importlib
+from GraphicInstructions import GIBox, GIString, GIJump, GIWrite
 
 # Pseudo instructions
 
@@ -49,7 +50,7 @@ class GraphicCompiler():
             inst = v.compile()
 
             if(self.verbose):
-                print(v.hint(p))
+                print( v.hint('%08x' % p ))
 
             self.inst_str += str(hex(inst[0]))[2:] + '\n'
             if(v.inst_len == 1):
@@ -72,17 +73,53 @@ class GraphicCompiler():
     def get_mapped_data(self):
         return self.data
 
-if __name__ == '__main__':
-    g = GraphicCompiler(True)
+    def dump_mapped_data(self, fp):
+        with open(fp, 'w', encoding = None) as f:
+            f.write(self.data)
 
-    g.label('main:')
-    g.add(GIString(10,20,30,'Hello world!', 255, 0, 1).get())
-    g.add(GIBox(10, 10, 800, 600, 255, 0).get())
-    g.add(GIWrite().get())
-    g.add(GIJump(label = 'main').get())
+    def dump_machine_code(self, fp):
+        with open(fp, 'w', encoding = None) as f:
+            f.write(self.inst_str)
+
+HELP_MESSAGE = '''Graphic Compiler
+Usage: python GraphicCompiler.py -i <input_file> -o <output_file> -d <data_file> [-v] [-h]'''
+
+if __name__ == '__main__':
+    # Parse the arguments
+    opts, args = getopt.getopt(sys.argv[1:], "hvi:o:d:")
+
+    for opt,val in opts:
+        if opt == '-i':
+            t = os.path.split(val)
+
+            if t[0] == '':
+                input_path = '.'
+            else:
+                input_path = t[0]
+            input_module = t[1][:-3]
+        elif opt == '-o':
+            output_file = val
+        elif opt == '-d':
+            data_file = val
+        elif opt == '-v':
+            verbose = True
+        else:
+            print(HELP_MESSAGE)
+            sys.exit()
+
+    m = importlib.import_module(input_path, input_module)
+
+    g = GraphicCompiler(verbose)
+    
+    for v in m.insts:
+
+        if isinstance(v, str):
+            g.label(v)
+        else:
+            g.add(v)
 
     g.map_data()
     g.compile()
 
-    print(g.get_machine_code())
-    print(g.get_mapped_data())
+    g.dump_machine_code(output_file)
+    g.dump_mapped_data(data_file)

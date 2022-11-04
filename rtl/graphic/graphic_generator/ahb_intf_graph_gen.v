@@ -108,7 +108,7 @@
                   A large memory block with a reset will be synthized into a SSRAM composing by
                   lots of registers and LUTs.
         */
-        reg_ctrl <= 0;
+        reg_ctrl <= 32'h0000_0001;
     end
     endtask
 

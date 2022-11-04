@@ -5,6 +5,8 @@ rtl/commerical
 
 # AHB FRBM instruction
 *.m2d
+# Compiled data files
+*.mem
 
 # Output of gowin IP cores
 # FFT

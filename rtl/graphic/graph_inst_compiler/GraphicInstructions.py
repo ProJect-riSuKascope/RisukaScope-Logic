@@ -44,6 +44,9 @@ class InstBase():
 
         return (w0_dest, w1_dest, w2_dest)
 
+    def _compile_hex(self):
+        return ['%08x' % v for v in self.compile()]
+
 class GIString(InstBase):
     fg_color: int
     bg_color: int
@@ -63,7 +66,7 @@ class GIString(InstBase):
 
     def hint(self, inst_addr):
         return \
-        f'''At {inst_addr}: STRING {self.compile()}
+        f'''At {inst_addr}: STRING {self._compile_hex()}
         start = ({self.x0},{self.y0}), end_y = {self.y1},
         string address = {self.data_addr}
         front color = {self.fg_color}, back color = {self.bg_color},
@@ -93,7 +96,7 @@ class GIBox(InstBase):
 
     def hint(self, inst_addr):
         return \
-        f'''At {inst_addr}: BOX {self.compile()}
+        f'''At {inst_addr}: BOX {self._compile_hex()}
         start = ({self.x0},{self.y0}), end_y = {self.y1},
         Width = {self.w}
         front color = {self.fg_color}, back color = {self.bg_color}'''
@@ -127,7 +130,7 @@ class GIChart(InstBase):
 
     def hint(self, inst_addr):
         return \
-        f'''At {inst_addr}: BOX {self.compile()}
+        f'''At {inst_addr}: BOX {self._compile_hex()}
         start = ({self.x0},{self.y0}), end_y = {self.y1},
         x' = {self.kx}x + {self.bx}, y' = {self.ky}y + {self.by},
         color_0 = {self.color_0}, color_1 = {self.color_1}
@@ -151,7 +154,7 @@ class GIJump(InstBase):
 
     def hint(self, inst_addr):
         return \
-        f'''At {inst_addr}: JUMP {self.compile()}
+        f'''At {inst_addr}: JUMP {self._compile_hex()}
         Label = {self.label}, destination = {self.dest_addr}'''
     
     def _compile_w0(self):
@@ -170,7 +173,7 @@ class GIWrite(InstBase):
 
     def hint(self, inst_addr):
         return \
-        f'''At {inst_addr}: WRITE {self.compile()}'''
+        f'''At {inst_addr}: WRITE {self._compile_hex()}'''
 
     def _compile_w0(self):
         return self.opcode << 24

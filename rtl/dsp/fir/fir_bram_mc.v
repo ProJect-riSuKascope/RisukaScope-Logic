@@ -18,11 +18,8 @@
     limitations under the License.
 */
 module fir_bram_mc #(
-    parameter DW = 16,
-
-    // AHB Bus address
-    parameter BUS_ADDR    = 32'h0000_0001,
-    parameter BUS_PERI_AW = 8
+    parameter DW       = 16,
+    parameter MEM_FILE = "test.mem"
 ) (
     // Global clock and reset
     input  wire clk,
@@ -64,14 +61,17 @@ module fir_bram_mc #(
     // Registers
     reg  [31:0] reg_ctrl;
 
-    reg                coeff_r;
     reg                coeff_we;
     reg  signed [15:0] rd_coeff;
 
     reg  [15:0] coeffs  [0:1023];
+    initial begin
+        $readmemh(MEM_FILE, coeffs);    
+    end
+
     always @(posedge clk, negedge reset_n) begin
         if(!reset_n)
-            coeff_r <= 0;
+            rd_coeff <= 0;
         else begin
             if(coeff_we)
                 coeffs[haddr_last[9:1]] <= hwdata_s[15:0];

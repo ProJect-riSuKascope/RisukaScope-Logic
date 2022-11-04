@@ -472,7 +472,7 @@ module graphic_generator#(
                     stat   <= STAT_WRITE;
                 end
                 else begin
-                    if((y > y0) && (y < y1)) begin      // y in range
+                    if((y >= y0) && (y < y1)) begin      // y in range
                         word_1 <= inst[pc];
                         pc     <= pc + 1;
 

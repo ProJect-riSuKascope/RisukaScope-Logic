@@ -39,6 +39,14 @@ module graphic_unit_model#(
     input  wire [15:0] color_1,
     input  wire        waterfall,
 
+    // Buffer access
+    // String
+    output reg  [10:0] char_addr,
+    input  wire        char_data,
+    // Chart
+    output reg  [10:0] val_addr,
+    input  wire [15:0] val_in,
+
     // Debug
     output reg  [31:0] cycles
 );

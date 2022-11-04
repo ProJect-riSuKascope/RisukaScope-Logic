@@ -16,6 +16,8 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 */
+`define DEBUG_INST
+
 module graphic_generator(
     input  wire hclk,
     input  wire hresetn,
@@ -54,17 +56,24 @@ module graphic_generator(
     localparam ACTIVE_HORI = 1024;
     localparam ACTIVE_VERT = 768;
 
+    // AHB Access
+    reg  [15:0] haddr_last;
+
     // Registers
-    reg  [31:0]  reg_ctrl;
+    reg  [31:0] reg_ctrl;
+
+    wire gen_en = reg_ctrl[0];
 
     // Instruction fetch and check
-    reg  [31:0]  inst[0:511];
+    reg  [8:0]  pc;
 
-    wire [11:0]  inst_ar;
-    reg  [7:0]   inst_r;
-    reg  [11:0]  inst_aw;
-    reg  [7:0]   inst_w;
-    reg          inst_we;
+    reg  [31:0] inst[0:511];
+
+    wire [7:0]  inst_ar = pc;
+    reg  [7:0]  inst_r;
+    reg  [11:0] inst_aw;
+    reg  [7:0]  inst_w;
+    reg         inst_we;
 
     always @(posedge hclk, negedge hresetn) begin
         if(!hresetn) begin
@@ -74,11 +83,10 @@ module graphic_generator(
             inst_r <= inst[inst_ar];
 
             if(inst_we)
-                inst[inst_aw] <= inst_w;
+                inst[haddr_last[9:1]] <= hwdata_s;
         end
     end
 
-    reg  [8:0]   pc;
     reg  [31:0]  word_0, word_1, word_2;
     reg  [11:0]  y;
     reg          inst_start;
@@ -89,7 +97,7 @@ module graphic_generator(
     wire [11:0] x0 = {word_1[6:0], word_0[31:27]};
 
     // Instruction decode and dispatch
-    wire [2:0]  opcode   = word_0[16:24];       // Opcode
+    wire [2:0]  opcode   = word_0[26:24];       // Opcode
 
     // Character and box common
     wire [3:0]  fg_color = word_1[23:20];       // Foreground color
@@ -112,6 +120,9 @@ module graphic_generator(
     wire [15:0] color_0  = word_2[15:0];
     wire [15:0] color_1  = word_2[31:16];
 
+    // Jump
+    wire [23:0] jmp_dest = word_0[23:0];
+
     // Instruction dispatch
     wire        str_en   = (opcode == 3'b000);
     wire        lin_en   = (opcode == 3'b001);
@@ -124,23 +135,20 @@ module graphic_generator(
 
     // Palette
     reg  [15:0] palette[0:15];
-    reg  [3:0]  palette_aw;
     reg  [15:0] palette_w;
     reg         palette_we;
 
     always @(posedge hclk, negedge hresetn) begin
         if(palette_we)
-            palettr[palette_aw] <= palette_w;
+            palette[haddr_last[3:0]] <= hwdata_s[15:0];
     end
 
     // String buffer
     // The GowinSynthesis is quite silly here
     reg  [7:0]  str_buffer[0:2047];
 
-    wire [11:0] str_buffer_ar;
+    reg  [11:0] str_buffer_ar;
     reg  [7:0]  str_buffer_r;
-    reg  [11:0] str_buffer_aw;
-    reg  [7:0]  str_buffer_w;
     reg         str_buffer_we;
 
     always @(posedge hclk, negedge hresetn) begin
@@ -151,7 +159,7 @@ module graphic_generator(
             str_buffer_r <= str_buffer[str_buffer_ar];
 
             if(str_buffer_we)
-                str_buffer[str_buffer_aw] <= str_buffer_w;
+                str_buffer[haddr_last[10:0]] <= hwdata_s[7:0];
         end
     end
 
@@ -162,6 +170,36 @@ module graphic_generator(
     wire [11:0] pix_str_x;
     wire        pix_str_wr;
 
+    wire [11:0] str_buffer_ar_u;
+
+    `ifdef DEBUG_INST
+    graphic_unit_model#(
+        .UNIT_NAME("STRING")
+    ) str_inst(
+        .clk(hclk),
+        .reset_n(hresetn),
+        
+        // Parameters
+        .dy        (dy),
+        .base_addr (str_addr),
+        .fg_color  (fg_color),
+        .bg_color  (bg_color),
+        .scale     (ch_scale),
+
+        // String buffer access
+        .char_addr (str_buffer_ar_u),
+        .char_data (str_buffer_r),
+
+        // Pixel output
+        .dx        (pix_str_x),
+        .data      (pix_str_d),
+        .wr        (pix_str_wr),
+
+        // Control signals
+        .start (inst_start && str_en),
+        .done  (str_done)
+    );
+    `else
     string_unit str_inst(
         .clk(hclk),
         .reset_n(hresetn),
@@ -186,6 +224,7 @@ module graphic_generator(
         .start (inst_start && str_en),
         .done  (str_done)
     );
+    `endif    // DEBUG_INST @ String
 
     // Box unit
     wire        lin_done;
@@ -194,6 +233,29 @@ module graphic_generator(
     wire [11:0] pix_lin_x;
     wire        pix_lin_wr;
 
+    `ifdef DEBUG_INST
+    graphic_unit_model#(
+        .UNIT_NAME("LINE")
+    ) lin_inst(
+        .clk(hclk),
+        .reset_n(hresetn),
+        
+        // Parameters
+        .dy        (dy),
+        .width     (lin_w),
+        .fg_color  (fg_color),
+        .bg_color  (bg_color),
+
+        // Pixel output
+        .dx        (pix_lin_x),
+        .data      (pix_lin_d),
+        .wr        (pix_lin_wr),
+
+        // Control signals
+        .start (inst_start && lin_en),
+        .done  (lin_done)
+    );
+    `else
     lin_unit lin_inst(
         .clk(hclk),
         .reset_n(hresetn),
@@ -213,16 +275,15 @@ module graphic_generator(
         .start (inst_start && lin_en),
         .done  (lin_done)
     );
+    `endif      // DEBUG_INST @ Line
 
     // Chart unit
     // Chart data buffer
     // ...And also here
     reg  [7:0]  chart_buffer[0:1023];
 
-    wire [11:0] chart_buffer_ar;
-    wire [7:0]  chart_buffer_r;
-    reg  [11:0] chart_buffer_aw;
-    reg  [7:0]  chart_buffer_w;
+    reg  [11:0] chart_buffer_ar;
+    reg  [7:0]  chart_buffer_r;
     reg  [7:0]  chart_buffer_we;
 
     always @(posedge hclk, negedge hresetn) begin
@@ -233,7 +294,7 @@ module graphic_generator(
             chart_buffer_r <= chart_buffer[chart_buffer_ar];
 
             if(chart_buffer_we)
-                chart_buffer[chart_buffer_aw] <= chart_buffer_w;
+                chart_buffer[haddr_last[11:1]] <= hwdata_s[15:0];
         end
     end
 
@@ -243,6 +304,39 @@ module graphic_generator(
     wire [11:0] pix_chart_x;
     wire        pix_chart_wr;
 
+    wire [11:0] chart_buffer_ar_u;
+
+    `ifdef DEBUG_INST
+    graphic_unit_model#(
+        .UNIT_NAME("CHART")
+    ) chart_inst(
+        .clk(hclk),
+        .reset_n(hresetn),
+        
+        // Parameters
+        .dy        (dy),
+        .bx        (chart_bx),
+        .kx        (chart_kx),
+        .by        (chart_by),
+        .ky        (chart_ky),
+        .color_0   (color_0),
+        .color_1   (color_1),
+        .t         (chart_ty),
+
+        // Pixel output
+        .dx        (pix_chart_x),
+        .data      (pix_chart_d),
+        .wr        (pix_chart_wr),
+
+        // Fetch data
+        .val_addr  (chart_buffer_ar_u),
+        .val_in    (chart_buffer_r),
+
+        // Control signals
+        .start (inst_start && chart_en),
+        .done  (str_done)
+    );
+    `else
     chart_unit chart_inst(
         .clk(hclk),
         .reset_n(hresetn),
@@ -263,13 +357,14 @@ module graphic_generator(
         .pixel_wr  (pix_chart_wr),
 
         // Fetch data
-        .data_addr (chart_buffer_ar),
-        .data      (chart_buffer_r),
+        //.data_addr (chart_buffer_ar),
+        //.data_in   (chart_buffer_r),
 
         // Control signals
         .start (inst_start && chart_en),
         .done  (str_done)
     );
+    `endif      // DEBUG_INST @ Chart
 
     // Write access
     reg  [11:0] line_wr_x;
@@ -446,152 +541,5 @@ module graphic_generator(
         endcase
     end
 
-    // AHB Interface
-    // AHB signals
-    reg  [31:0] haddr_last;
-    reg         hwrite_last;
-    reg  [31:0] hwdata_last;
-
-    reg         ahb_halt;           // Pause a transfer
-    reg         ahb_end;            // End a transfer
-
-    always @(*) begin
-        case(hburst)
-        3'b000:begin        // INCR
-            ahb_halt = (htrans == 2'b01);       // BUSY
-            ahb_end  = (htrans == 2'b00);       // IDLE
-        end
-        3'b001:begin        // INCR
-            ahb_halt = 1'b0;                    // No halt
-            ahb_end  = (htrans == 2'b01);       // BUSY
-        end
-        default:begin       // INCRx, WRAPx
-            ahb_halt = (htrans == 2'b01);       // BUSY
-            ahb_end  = (htrans == 2'b00);       // IDLE
-        end
-        endcase
-    end
-
-    // AHB FSM
-    localparam  AHB_IDLE  = 2'b00;
-    localparam  AHB_READ  = 2'b01;
-    localparam  AHB_WRITE = 2'b10;
-    localparam  AHB_ERROR = 2'b11;
-    
-    reg  [1:0]  ahb_stat;
-
-    task ahb_transcation();
-    begin
-        if(!ahb_halt) begin
-            if(ahb_end) begin
-                ahb_stat <= AHB_IDLE;
-            end
-            else begin
-                if(hwrite_s)
-                    ahb_stat <= AHB_WRITE;
-                else
-                    ahb_stat <= AHB_READ;
-
-                // Record last address and data
-                haddr_last  <= haddr_s;
-            end
-        end
-    end
-    endtask
-
-    always @(posedge clk, negedge reset_n) begin
-        if(!reset_n) begin
-            // Reset AHB interface
-            haddr_last  <= 0;
-            hrdata_s    <= 'h0;
-
-            // Reset registers
-            reg_reset_ahb();
-
-            ahb_stat <= AHB_IDLE;
-        end
-        else begin
-        if(ce) begin
-            case(ahb_stat)
-            AHB_IDLE, AHB_READ:begin
-                // Nothing to do
-                if(hsel_s)
-                    ahb_transcation();
-                else
-                    ahb_stat <= AHB_IDLE;
-            end
-            AHB_WRITE:begin
-                if(hsel_s)
-                    ahb_transcation();
-                else
-                    ahb_stat <= AHB_IDLE;
-            end
-        endcase
-        end
-    end
-    end
-
-    always @(*) begin
-        case(ahb_stat)
-            AHB_IDLE, AHB_READ:begin
-                // AHB Interface
-                hreadyout_s = 1'b1;
-                hresp_s     = 1'b0;
-
-                // Write control
-                palette_we      = 1'b0;
-                inst_we         = 1'b0;
-                str_buffer_we   = 1'b0;
-                chart_buffer_we = 1'b0;
-            end
-            AHB_WRITE:begin
-                // AHB Interface
-                hresp_s     = 1'b0;
-                hreadyout_s = 1'b1;
-
-                // Write control
-                palette_we      = (haddr_last[15:1]  == 'h800);
-                inst_we         = (haddr_last[15:11] == 'h02);
-                str_buffer_we   = (haddr_last[15:11] == 'h06);
-                chart_buffer_we = (haddr_last[15:11] == 'h08);
-            end
-            default:begin
-                // AHB interface
-                hresp_s     = 1'b0;
-                hreadyout_s = 1'b1;
-
-                // Write control
-                palette_we      = 1'b0;
-                inst_we         = 1'b0;
-                str_buffer_we   = 1'b0;
-                chart_buffer_we = 1'b0;
-            end
-        endcase
-
-        // Read address
-        inst_ar         = haddr_s[10:2];
-        str_buffer_ar   = haddr_s[11:0];
-        chart_buffer_ar = haddr_s[12:1];
-
-        // Write address
-        inst_aw         = haddr_s[10:2];
-        str_buffer_aw   = haddr_s[11:0];
-        chart_buffer_aw = haddr_s[12:1];
-
-        // Write data
-        palette_w       = hwdata_s[3:0];
-        inst_w          = hwdata_s;
-        str_buffer_w    = hwdata_s[7:0];
-        chart_buffer_w  = hwdata_s[15:0];
-
-        // Read data
-        case(haddr_last[15:0])
-            'h0000:hrdata_s  = reg_ctrl;
-            'b0001_0000_0000_000x:hrdata_s  = {28'h0, palette[haddr_last[3:0]]};
-            'b0010_0xxx_xxxx_xxxx:hrdata_s  = inst_buffer_r;
-            'b0011_0xxx_xxxx_xxxx:hrdata_s  = {24'h0, str_buffer_r};
-            'b0100_0xxx_xxxx_xxxx:hrdata_s  = {16'h0, chart_buffer_r};
-            default:hrdata_s = 0;
-        endcase
-    end
+    `include "ahb_intf_graph_gen.v"
 endmodule

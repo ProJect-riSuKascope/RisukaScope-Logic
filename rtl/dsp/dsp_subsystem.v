@@ -48,18 +48,22 @@ module dsp_subsystem(
     input  wire        tvalid_s,
     output wire        tready_s
 );
+    // Module initialzation file
+    localparam MEM_FILE_CICC = "../data/compensation_8.mem";
+    localparam MEM_FILE_FFTW = "";
+    localparam MEM_FILE_RECC = "";
 
     // AHB Slave decoder
     wire hsel_agc, hsel_cic, hsel_cic_comp, hsel_fft_win, 
          hsel_recv_comp, hsel_prom, hsel_spect_buff;
     
-    assign hsel_agc        = (haddr_s[31:16] == 16'h0000);
-    assign hsel_cic        = (haddr_s[31:16] == 16'h0001);
-    assign hsel_cic_comp   = (haddr_s[31:16] == 16'h0002);
-    assign hsel_fft_win    = (haddr_s[31:16] == 16'h0003);
-    assign hsel_recv_comp  = (haddr_s[31:16] == 16'h0004);
-    assign hsel_prom       = (haddr_s[31:16] == 16'h0005);
-    assign hsel_spect_buff = (haddr_s[31:16] == 16'h0006);
+    assign hsel_agc        = (haddr_s[23:16] == 4'h1);
+    assign hsel_cic        = (haddr_s[23:16] == 4'h2);
+    assign hsel_cic_comp   = (haddr_s[23:16] == 4'h3);
+    assign hsel_fft_win    = (haddr_s[23:16] == 4'h4);
+    assign hsel_recv_comp  = (haddr_s[23:16] == 4'h5);
+    assign hsel_prom       = (haddr_s[23:16] == 4'h6);
+    assign hsel_spect_buff = (haddr_s[23:16] == 4'h7);
 
     // AHB sync bridge
     wire [31:0] haddr_m_syncout;
@@ -253,11 +257,11 @@ module dsp_subsystem(
       .tready_m (tready_decimated ),
 
       .haddr_s     (haddr_m_syncout ),
-      .hburst_s    (hburst_syncout ),
-      .hsize_s     (hsize_syncout ),
-      .htrans_s    (htrans_syncout ),
-      .hwdata_s    (hwdata_syncout ),
-      .hwrite_s    (hwrite_syncout ),
+      .hburst_s    (hburst_m_syncout ),
+      .hsize_s     (hsize_m_syncout ),
+      .htrans_s    (htrans_m_syncout ),
+      .hwdata_s    (hwdata_m_syncout ),
+      .hwrite_s    (hwrite_m_syncout ),
 
       .hrdata_s    (hrdata_cic ),
       .hreadyout_s (hreadyout_cic ),
@@ -286,11 +290,11 @@ module dsp_subsystem(
         .tready_m (tready_dec_comped ),
 
         .haddr_s     (haddr_m_syncout ),
-        .hburst_s    (hburst_syncout ),
-        .hsize_s     (hsize_syncout ),
-        .htrans_s    (htrans_syncout ),
-        .hwdata_s    (hwdata_syncout ),
-        .hwrite_s    (hwrite_syncout ),
+        .hburst_s    (hburst_m_syncout ),
+        .hsize_s     (hsize_m_syncout ),
+        .htrans_s    (htrans_m_syncout ),
+        .hwdata_s    (hwdata_m_syncout ),
+        .hwrite_s    (hwrite_m_syncout ),
 
         .hrdata_s    (hrdata_cic_comp ),
         .hreadyout_s (hreadyout_cic_comp ),
@@ -350,11 +354,11 @@ module dsp_subsystem(
         .tready_m (tready_fft_win ),
 
         .haddr_s     (haddr_m_syncout ),
-        .hburst_s    (hburst_syncout ),
-        .hsize_s     (hsize_syncout ),
-        .htrans_s    (htrans_syncout ),
-        .hwdata_s    (hwdata_syncout ),
-        .hwrite_s    (hwrite_syncout ),
+        .hburst_s    (hburst_m_syncout ),
+        .hsize_s     (hsize_m_syncout ),
+        .htrans_s    (htrans_m_syncout ),
+        .hwdata_s    (hwdata_m_syncout ),
+        .hwrite_s    (hwrite_m_syncout ),
 
         .hrdata_s    (hrdata_fft_win ),
         .hreadyout_s (hreadyout_fft_win ),
@@ -395,7 +399,7 @@ module dsp_subsystem(
 
     receiver_compensation #(
       .DW       (16),
-      .MEM_FILE (MEM_FILE ),
+      .MEM_FILE (MEM_FILE_RECC ),
       .DATA_CNT (1024 )
     ) rec_comp_0(
         .clk     (hclk ),
@@ -415,11 +419,11 @@ module dsp_subsystem(
         .tready_m (tready_recv_comp ),
 
         .haddr_s     (haddr_m_syncout ),
-        .hburst_s    (hburst_syncout ),
-        .hsize_s     (hsize_syncout ),
-        .htrans_s    (htrans_syncout ),
-        .hwdata_s    (hwdata_syncout ),
-        .hwrite_s    (hwrite_syncout ),
+        .hburst_s    (hburst_m_syncout ),
+        .hsize_s     (hsize_m_syncout ),
+        .htrans_s    (htrans_m_syncout ),
+        .hwdata_s    (hwdata_m_syncout ),
+        .hwrite_s    (hwrite_m_syncout ),
 
         .hrdata_s    (hrdata_recv_comp ),
         .hreadyout_s (hreadyout_recv_comp ),
@@ -441,11 +445,11 @@ module dsp_subsystem(
         .tready_s ( ),              // The bus is controlled by prominence analysis module
 
         .haddr_s     (haddr_m_syncout ),
-        .hburst_s    (hburst_syncout ),
-        .hsize_s     (hsize_syncout ),
-        .htrans_s    (htrans_syncout ),
-        .hwdata_s    (hwdata_syncout ),
-        .hwrite_s    (hwrite_syncout ),
+        .hburst_s    (hburst_m_syncout ),
+        .hsize_s     (hsize_m_syncout ),
+        .htrans_s    (htrans_m_syncout ),
+        .hwdata_s    (hwdata_m_syncout ),
+        .hwrite_s    (hwrite_m_syncout ),
 
         .hrdata_s    (hrdata_spect_buff ),
         .hreadyout_s (hreadyout_spect_buff ),
@@ -468,11 +472,11 @@ module dsp_subsystem(
         .tready_s (tready_recv_comp),
 
         .haddr_s     (haddr_m_syncout ),
-        .hburst_s    (hburst_syncout ),
-        .hsize_s     (hsize_syncout ),
-        .htrans_s    (htrans_syncout ),
-        .hwdata_s    (hwdata_syncout ),
-        .hwrite_s    (hwrite_syncout ),
+        .hburst_s    (hburst_m_syncout ),
+        .hsize_s     (hsize_m_syncout ),
+        .htrans_s    (htrans_m_syncout ),
+        .hwdata_s    (hwdata_m_syncout ),
+        .hwrite_s    (hwrite_m_syncout ),
 
         .hrdata_s    (hrdata_prom ),
         .hreadyout_s (hreadyout_prom ),

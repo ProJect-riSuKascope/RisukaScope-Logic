@@ -7,6 +7,8 @@ rtl/commerical
 *.m2d
 # Compiled data files
 *.mem
+# Python cache
+*.pyc
 
 # Output of gowin IP cores
 # FFT

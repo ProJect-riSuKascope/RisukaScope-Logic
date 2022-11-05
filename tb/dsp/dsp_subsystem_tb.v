@@ -11,7 +11,7 @@ module dsp_subsystem_tb ();
     reg  clk, reset_n;
 
     // DUT
-    wire [15:0] tdata;
+    wire [31:0] tdata;
     wire        tlast;
     wire        tuser;
     wire        tvalid;
@@ -29,7 +29,7 @@ module dsp_subsystem_tb ();
     wire        hresp;
     
     wire        hsel;
-    assign      hsel = (haddr[31:16] == 16'h0000);
+    assign      hsel = (haddr[31:24] == 16'h000);
 
     dsp_subsystem dut (
         .hclk    (clk ),
@@ -58,7 +58,7 @@ module dsp_subsystem_tb ();
     cmsdk_ahb_fileread_master32 #(
 		.InputFileName ("../tb/dsp/stimulus_dsp_subsys.m2d"),
 		.MessageTag    ("FRBM"),
-		.StimArraySize (1024)
+		.StimArraySize (16384)
     ) ahb_frbm32(
 		.HCLK    (clk),
 		.HRESETn (reset_n),
@@ -81,16 +81,30 @@ module dsp_subsystem_tb ();
 		.LINENUM  ( )
     );
 
+    wire [15:0] data_i = tdata[15:0];
+    wire [15:0] data_q = tdata[31:16];
+
     random_wave_axis #(
 		.DW        (16 ),
-		.PHASE_INC (0.01 )
-    ) axis_src(
+		.PHASE_INC (0.001 )
+    ) axis_src_i(
 		.aclk       (clk ),
 		.aresetn    (reset_n ),
 
-		.tdata_m_o  (tdata ),
+		.tdata_m_o  (tdata[15:0] ),
 		.tvalid_m_o (tvalid ),
 		.tready_m_i (tready )
+    ) ;
+    random_wave_axis #(
+		.DW        (16 ),
+		.PHASE_INC (0.01 )
+    ) axis_src_q(
+		.aclk       (clk ),
+		.aresetn    (reset_n ),
+
+		.tdata_m_o  (tdata[31:16] ),
+		.tvalid_m_o (),
+		.tready_m_i ()
     );
   
     // Testbench process

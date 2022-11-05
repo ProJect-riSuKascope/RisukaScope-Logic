@@ -56,7 +56,7 @@ module cic_decimator_varialble_ahb(
 	// Registers and fields
     // Control interface
     reg  [31:0] reg_ctrl;
-    wire deci_enable = reg_ctrl[1];
+    wire deci_enable = reg_ctrl[0];
 
     // LSB truncation of each stage
     reg  [31:0] reg_trunc_intg_0;
@@ -101,15 +101,15 @@ module cic_decimator_varialble_ahb(
     wire signed [46:0] d_1;
     wire signed [38:0] d_2;
     wire signed [31:0] d_3;
-    wire signed [23:0] d_4;
-    wire signed [22:0] d_5;
+    wire signed [24:0] d_4;
+    wire signed [23:0] d_5;
     wire signed [21:0] d_6;
     wire signed [20:0] d_7;
     wire signed [19:0] d_8;
     wire signed [19:0] d_9;
 
     integrator #(
-      .DW (53)
+    	.DW (53)
     ) intg_0(
 		.clk     (clk),
 		.reset_n (reset_n),
@@ -120,7 +120,7 @@ module cic_decimator_varialble_ahb(
     );
 
     integrator #(
-      .DW (47)
+    	.DW (47)
     ) intg_1(
 		.clk     (clk),
 		.reset_n (reset_n),
@@ -131,7 +131,7 @@ module cic_decimator_varialble_ahb(
     );
 
     integrator #(
-      .DW (39)
+    	.DW (39)
     ) intg_2(
 		.clk     (clk),
 		.reset_n (reset_n),
@@ -142,7 +142,7 @@ module cic_decimator_varialble_ahb(
     );
 
     integrator #(
-      .DW (32)
+    	.DW (32)
     ) intg_3(
 		.clk     (clk),
 		.reset_n (reset_n),
@@ -153,7 +153,7 @@ module cic_decimator_varialble_ahb(
     );
 
     integrator #(
-      .DW (24)
+    	.DW (25)
     ) intg_4(
 		.clk     (clk),
 		.reset_n (reset_n),
@@ -166,13 +166,13 @@ module cic_decimator_varialble_ahb(
     // Resample
     reg         [15:0] cycle;
     
-    wire resample_en = (cycle == reg_dec_ratio) && proc_en;
+    wire resample_en = (cycle == reg_dec_ratio - 1) && proc_en;
 
     always @(posedge clk, negedge reset_n) begin
         if(!reset_n)
             cycle <= 0;
         else begin
-            if(cycle == reg_dec_ratio)
+            if(cycle == reg_dec_ratio - 1)
                 cycle <= 0;
             else
                 cycle <= cycle + 1;
@@ -180,20 +180,20 @@ module cic_decimator_varialble_ahb(
     end
 
     comb #(
-      .DW (23),
-      .M  (2)
+    	.DW (24),
+    	.M  (2)
     ) comb_0(
 		.clk     (clk),
 		.reset_n (reset_n),
 		.ce      (ce && resample_en),
 
-		.din  (d_4 >>> 1),
+		.din  (d_4 >>> intg_trunc_4),
 		.dout (d_5)
     );
 
     comb #(
-      .DW (22),
-      .M  (2)
+    	.DW (22),
+    	.M  (2)
     ) comb_1(
 		.clk     (clk),
 		.reset_n (reset_n),
@@ -204,8 +204,8 @@ module cic_decimator_varialble_ahb(
     );
 
     comb #(
-      .DW (21),
-      .M  (2)
+    	.DW (21),
+    	.M  (2)
     ) comb_2(
 		.clk     (clk),
 		.reset_n (reset_n),
@@ -216,8 +216,8 @@ module cic_decimator_varialble_ahb(
     );
 
     comb #(
-      .DW (20),
-      .M  (2)
+    	.DW (20),
+    	.M  (2)
     ) comb_3(
 		.clk     (clk),
 		.reset_n (reset_n),
@@ -228,8 +228,8 @@ module cic_decimator_varialble_ahb(
     );
 
     comb #(
-      .DW (20),
-      .M  (2)
+    	.DW (20),
+    	.M  (2)
     ) comb_4(
 		.clk     (clk),
 		.reset_n (reset_n),

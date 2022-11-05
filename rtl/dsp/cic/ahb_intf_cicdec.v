@@ -79,7 +79,7 @@
 
                 'h1xxx:hrdata_s <= <memory>[haddr_s[15:0]];     // <memory> is mapped to 0x1000.
         */
-        casex(haddr_s)
+        casex(haddr_s[15:0])
             'h0000:hrdata_s <= reg_ctrl;
             'h0004:hrdata_s <= reg_dec_ratio;
             'h1000:hrdata_s <= reg_trunc_intg_0;
@@ -97,7 +97,7 @@
             'h0:reg_0 <= hwdata_s;
             'h1xxx:<memory>[haddr_s[15:0]] <= hwdata_s;
         */
-        casex(haddr_last)
+        casex(haddr_last[15:0])
         'h0000:reg_ctrl         <= hwdata_s;
         'h0004:reg_dec_ratio    <= hwdata_s;
         'h1000:reg_trunc_intg_0 <= hwdata_s;
@@ -197,8 +197,9 @@
                     end
                 end
                 AHB_WRITE:begin
+                    reg_write_ahb();
+                    
                     if(hsel_s) begin
-                        reg_write_ahb();
                         ahb_transcation();
                     end
                     else

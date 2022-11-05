@@ -130,5 +130,7 @@ module fft_window #(
         end
     end
 
+    assign tready_s = tready_m;
+
     `include "ahb_intf_fft_window.v"
 endmodule

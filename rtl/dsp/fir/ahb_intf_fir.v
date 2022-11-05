@@ -86,8 +86,8 @@
             'h0:reg_0 <= hwdata_s;
             'h1xxx:<memory>[haddr_s[15:0]] <= hwdata_s;
         */
-        casex(haddr_last)
-            'h00:reg_ctrl <= hwdata_s;
+        casex(haddr_last[15:0])
+            'h0000:reg_ctrl <= hwdata_s;
             // The buffers are written in combiational blocks
         endcase
     end
@@ -146,6 +146,7 @@
 
             // Record last address and data
             haddr_last  <= haddr_s[15:0];
+            hwrite_last <= hwrite_s;
         end
     end
     endtask
@@ -154,6 +155,7 @@
         if(!reset_n) begin
             // Reset AHB interface
             haddr_last  <= 0;
+            hwrite_last <= 1'b0;
 
             // Reset registers
             reg_reset_ahb();
@@ -170,12 +172,14 @@
                     reg_update_ahb();
                 end
                 AHB_WRITE:begin
+                    reg_write_ahb();
+                    
                     if(hsel_s) begin
-                        reg_write_ahb();
                         ahb_transcation();
                     end
-                    else
+                    else begin
                         ahb_stat <= AHB_IDLE;
+                    end
                 end
                 AHB_ERROR:begin
                     ahb_stat <= AHB_IDLE;

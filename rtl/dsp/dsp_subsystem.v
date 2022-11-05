@@ -49,21 +49,9 @@ module dsp_subsystem(
     output wire        tready_s
 );
     // Module initialzation file
-    localparam MEM_FILE_CICC = "../data/compensation_16.mem";
-    localparam MEM_FILE_FFTW = "../data/fft_window_hamming.mem";
-    localparam MEM_FILE_RECC = "../data/recv_comp.mem";
-
-    // AHB Slave decoder
-    wire hsel_agc, hsel_cic, hsel_cic_comp, hsel_fft_win, 
-         hsel_recv_comp, hsel_prom, hsel_spect_buff;
-    
-    assign hsel_agc        = (haddr_s[23:16] == 4'h1);
-    assign hsel_cic        = (haddr_s[23:16] == 4'h2);
-    assign hsel_cic_comp   = (haddr_s[23:16] == 4'h3);
-    assign hsel_fft_win    = (haddr_s[23:16] == 4'h4);
-    assign hsel_recv_comp  = (haddr_s[23:16] == 4'h5);
-    assign hsel_prom       = (haddr_s[23:16] == 4'h6);
-    assign hsel_spect_buff = (haddr_s[23:16] == 4'h7);
+    localparam MEM_FILE_CICC = "D:/Concordia_Projects/Project_PlatinumCollapsaR/fpga/data/compansation_16.mem";
+    localparam MEM_FILE_FFTW = "D:/Concordia_Projects/Project_PlatinumCollapsaR/fpga/data/fft_window_hamming.mem";
+    localparam MEM_FILE_RECC = "D:/Concordia_Projects/Project_PlatinumCollapsaR/fpga/data/recv_comp.mem";
 
     // AHB sync bridge
     wire [31:0] haddr_m_syncout;
@@ -113,6 +101,18 @@ module dsp_subsystem(
         .HRESPM     (hresp_m_syncin ),
         .HRDATAM    (hrdata_m_syncin )
     );
+
+    // AHB Slave decoder
+    wire hsel_agc, hsel_cic, hsel_cic_comp, hsel_fft_win, 
+         hsel_recv_comp, hsel_prom, hsel_spect_buff;
+    
+    assign hsel_agc        = (haddr_m_syncout[23:16] == 4'h1);
+    assign hsel_cic        = (haddr_m_syncout[23:16] == 4'h2);
+    assign hsel_cic_comp   = (haddr_m_syncout[23:16] == 4'h3);
+    assign hsel_fft_win    = (haddr_m_syncout[23:16] == 4'h4);
+    assign hsel_recv_comp  = (haddr_m_syncout[23:16] == 4'h5);
+    assign hsel_prom       = (haddr_m_syncout[23:16] == 4'h6);
+    assign hsel_spect_buff = (haddr_m_syncout[23:16] == 4'h7);
 
     // AHB slave MUX
     wire [31:0] hrdata_agc;
@@ -350,6 +350,7 @@ module dsp_subsystem(
 
         .tdata_m  (tdata_fft_win ),
         .tlast_m  (tlast_fft_win ),
+        .tuser_m  (tuser_fft_win),
         .tvalid_m (tvalid_fft_win ),
         .tready_m (tready_fft_win ),
 

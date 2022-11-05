@@ -50,7 +50,7 @@ module fir_bram_mc #(
     input  wire            hwrite_s,
 
     output reg  [31:0]     hrdata_s,
-    output reg  [31:0]     hreadyout_s,
+    output reg             hreadyout_s,
     output reg             hresp_s,
     // Exlusive transfer is not available, thus HEXOKAY signal is not used.
 
@@ -99,13 +99,15 @@ module fir_bram_mc #(
     always @(posedge clk, negedge reset_n) begin
         if(!reset_n) begin
             wr_ptr <= 10'h0;
-            rd_ptr <= 10'h0;
+            rd_ptr <= 10'h1;
+
+            acc    <= 0;
 
             cycle  <= 10'h0;
         end
         else begin
         if(ce && enable && tready_s) begin
-            if (rd_ptr == wr_ptr - 1) begin
+            if ( (rd_ptr == wr_ptr - 1) || ((rd_ptr == rate - 1) && (wr_ptr == 0)) ) begin
                 if(wr_ptr == rate - 1)
                     wr_ptr <= 10'h0;
                 else
@@ -114,18 +116,22 @@ module fir_bram_mc #(
                 rd_ptr <= wr_ptr + 1;
             end
             else begin
-                if(rd_ptr == rate - 1)
+                if(rd_ptr >= rate - 1)
                     rd_ptr <= 10'h0;
                 else
                     rd_ptr <= rd_ptr + 1;
+
+                if(wr_ptr >= rate - 1)
+                    wr_ptr <= 10'h0;
             end
 
             // Read data from buffer
             rd_data  <= buffer[rd_ptr];
+            buffer[wr_ptr] <= tdata_s;
 
             // Calculate and accumulate
-            if(rd_ptr == wr_ptr)
-                acc <= 0;
+            if((rd_ptr == wr_ptr + 1) || ((wr_ptr == 15) && (rd_ptr == 0)))
+                acc <= rd_data * rd_coeff;
             else
                 acc <= rd_data * rd_coeff + acc;
         end
@@ -137,13 +143,14 @@ module fir_bram_mc #(
         if(!reset_n) begin
             tdata_m  <= 0;
             tvalid_m <= 1'b0;
+            tready_s <= 1'b1;
         end
         else begin
         if(ce) begin
             // Check if the decimator is enabled
             if(enable) begin
                 // Output if read pointer equals to write pointer.
-                if(rd_ptr == wr_ptr) begin
+                if((rd_ptr == wr_ptr + 1) || ((wr_ptr == 15) && (rd_ptr == 0))) begin
                     tdata_m  <= acc[31:16];             // Q15
                     tvalid_m <= 1'b1;
                 end

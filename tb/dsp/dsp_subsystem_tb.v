@@ -2,6 +2,7 @@
     dsp_subsystem_tb.v
     Testbench of DSP subsystem
 */
+`timescale 1ns/100ps
 module dsp_subsystem_tb ();
     	// Parameters
 	localparam PERIOD_CLK = 10;

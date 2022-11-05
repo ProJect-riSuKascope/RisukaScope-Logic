@@ -34,9 +34,9 @@ module dsp_subsystem(
     input  wire [31:0]     hwdata_s,
     input  wire            hwrite_s,
 
-    output reg  [31:0]     hrdata_s,
-    output reg  [31:0]     hreadyout_s,
-    output reg             hresp_s,
+    output wire [31:0]     hrdata_s,
+    output wire [31:0]     hreadyout_s,
+    output wire            hresp_s,
     // Exlusive transfer is not available, thus HEXOKAY signal is not used.
     input  wire            hsel_s,
 
@@ -79,7 +79,7 @@ module dsp_subsystem(
     cmsdk_ahb_to_ahb_sync #(
         .AW(32),
         .DW(32),
-        .MW(0),
+        .MW(1),
         .BURST(0)
     ) ahb_bridge (
         .HCLK (hclk ),
@@ -404,7 +404,6 @@ module dsp_subsystem(
     ) rec_comp_0(
         .clk     (hclk ),
         .reset_n (hresetn ),
-        .ce      (1'b1 ),
 
         .tdata_s  (tdata_fft ),
         .tlast_s  (tlast_fft ),

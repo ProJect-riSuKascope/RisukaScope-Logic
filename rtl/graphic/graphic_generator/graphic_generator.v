@@ -16,8 +16,6 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 */
-`define DEBUG_INST
-
 module graphic_generator#(
     parameter INST_BUFFER_MIF = "test.mem"
 )(

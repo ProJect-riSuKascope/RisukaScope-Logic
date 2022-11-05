@@ -25,7 +25,9 @@ rtl/graphic/ip/hdmi_tx
 !hdmi_tx.ipc
 rtl/graphic/ip/vdma
 !vdma.ipc
-rtl/graphic/ip/ddr3_memory_interface
+rtl/graphic/ip/ddr3_mif
+rtl/graphic/ip/pll_ddr3
+rtl/graphic/ip/pll_pixel
 
 # MCU core
 rtl/mcu/ip/gowin_picorv32

@@ -305,6 +305,7 @@ module dsp_subsystem(
   
     wire [15:0] tdata_framed;
     wire        tlast_framed;
+    wire        tuser_framed;
     wire        tvalid_framed;
     wire        tready_framed;
 
@@ -322,6 +323,7 @@ module dsp_subsystem(
 
         .tdata_m  (tdata_framed ),
         .tlast_m  (tlast_framed ),
+        .tuser_m  (tuser_framed ),
         .tvalid_m (tvalid_framed ),
         .tready_m (tready_framed ),
 
@@ -346,6 +348,7 @@ module dsp_subsystem(
         .tdata_s  (tdata_framed ),
         .tvalid_s (tvalid_framed ),
         .tlast_s  (tlast_framed ),
+        .tuser_s  (tuser_framed),
         .tready_s (tready_framed ),
 
         .tdata_m  (tdata_fft_win ),

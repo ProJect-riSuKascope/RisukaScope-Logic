@@ -14,8 +14,9 @@ module fft_window #(
     // Input AXI-Stream
     input  wire [DW-1:0] tdata_s,
     input  wire          tvalid_s,
+    input  wire          tuser_s,
     input  wire          tlast_s,
-    input  wire          tready_s,
+    output wire          tready_s,
 
     // Output AXI-Stream
     output reg  [DW-1:0] tdata_m,
@@ -51,9 +52,9 @@ module fft_window #(
     reg         [DW-1:0] data_0;
     reg         [9:0]    idx;
 
-    reg                  valid_0;
-    reg                  valid_1;
-    reg                  last_0;
+    reg                  valid_0, valid_1;
+    reg                  last_0, last_1;
+    reg                  user_0, user_1;
 
     always @(posedge clk, negedge reset_n) begin
         if(!reset_n) begin
@@ -65,6 +66,7 @@ module fft_window #(
             valid_1 <= 1'b0;
 
             last_0  <= 1'b0;
+            user_0  <= 1'b0;
         end
         else begin
             if(tvalid_s && tready_s) begin
@@ -77,6 +79,9 @@ module fft_window #(
                 data   <= data_0;
 
                 last_0 <= tlast_s;
+                last_1 <= last_0;
+                user_0 <= tuser_s;
+                user_1 <= user_0;
             end
 
             valid_0 <= tvalid_s;
@@ -88,7 +93,7 @@ module fft_window #(
     reg  [31:0] haddr_last;
 
     // Window coefficients
-    reg  signed [DW*2-1:0] coeff_r;
+    reg  signed [DW-1:0] coeff_r;
     reg                    coeff_we;
 
     reg  [DW-1:0] coeffs [0:1023];
@@ -120,10 +125,10 @@ module fft_window #(
             tuser_m  <= 1'b0;
         end
         else begin
-            if(tvalid_m && tready_m) begin
-                tdata_m <= result[DW*2-1:0];
+            if(tvalid_s && tready_s) begin
+                tdata_m <= result[DW*2-1:DW];
                 tlast_m <= last_0;
-                tuser_m <= tlast_m;
+                tuser_m <= user_0;
             end
 
             tvalid_m <= valid_1;

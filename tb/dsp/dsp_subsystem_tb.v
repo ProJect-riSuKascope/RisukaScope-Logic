@@ -119,7 +119,7 @@ module dsp_subsystem_tb ();
     always #(PERIOD_CLK/2) clk = ~clk;
 
     always begin
-        repeat(100000) @(posedge clk);
+        repeat(10000000) @(posedge clk);
         $stop();
     end
 endmodule

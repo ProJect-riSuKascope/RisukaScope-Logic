@@ -27,12 +27,13 @@ module frame_generation #(
     // Input AXI-Stream
     input  wire [DW-1:0] tdata_s,
     input  wire          tvalid_s,
-    output reg           tready_s,
+    output wire          tready_s,
 
     // Output AXI-Stream
     output reg  [DW-1:0] tdata_m,
     output reg           tvalid_m,
-    output reg           tlast_m,
+    output wire          tlast_m,
+    output wire          tuser_m,
     input  wire          tready_m,
 
     // External sync
@@ -40,27 +41,13 @@ module frame_generation #(
 );
     
     reg  [15:0]   cnt;
-    reg  [DW-1:0] tdata_last;
-    reg           tvalid_last;
-    reg  [DW-1:0] tdata_mp;
-    reg           tvalid_mp;
-
-    reg           stat;
-
-    localparam STAT_TRAN = 1'b0;
-    localparam STAT_HALT = 1'b1;
 
     always @(posedge clk, negedge reset_n) begin
         if(!reset_n) begin
             cnt        <= 0;
-            stat       <= STAT_TRAN;
 
-            tdata_mp    <= 0;
-            tdata_last  <= 1'b0;
-            tvalid_mp   <= 0;
-            tvalid_last <= 1'b0;
-
-            tready_s    <= 1'b1;
+            tdata_m    <= 0;
+            tvalid_m   <= 1'b0;
         end
         else begin
             if(ext_sync)
@@ -71,46 +58,16 @@ module frame_generation #(
                         cnt <= 0;
                     else
                         cnt <= cnt + 1;
-                end
-            end
 
-            case(stat)
-            STAT_TRAN:begin
-                if(tvalid_s && tready_s) begin
-                    tvalid_m    <= tvalid_s;
-                    tdata_m     <= tdata_s;
+                    tdata_m <= tdata_s;
                 end
 
-                if(tready_m) begin
-                    tdata_last  <= tdata_s;
-                    tvalid_last <= tvalid_s;
-                end
-                else
-                    stat <= STAT_HALT;
+                tvalid_m <= tvalid_s;
             end
-            STAT_HALT:begin
-                if(tready_m)
-                    stat <= STAT_HALT;
-            end
-            endcase
-
-            // tready pipeline
-            tready_s <= tready_m;
         end
     end
 
-    always @(*) begin
-        tlast_m = (cnt == FRAME_LEN - 1);
-
-        case(stat)
-            STAT_TRAN:begin
-                tdata_m  = tdata_mp;
-                tvalid_m = tvalid_mp;
-            end
-            STAT_HALT:begin
-                tdata_m  = tdata_last;
-                tvalid_m = tvalid_last;
-            end
-        endcase
-    end
+    assign tlast_m  = (cnt == FRAME_LEN - 1);
+    assign tuser_m  = (cnt == 0);
+    assign tready_s = tready_m;
 endmodule

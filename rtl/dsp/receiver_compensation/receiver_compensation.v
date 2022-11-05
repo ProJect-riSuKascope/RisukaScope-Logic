@@ -16,7 +16,7 @@ module receiver_compensation #(
     input  wire          tvalid_s,
     input  wire          tlast_s,
     input  wire          tuser_s,
-    input  wire          tready_s,
+    output wire          tready_s,
 
     // Output AXI-Stream
     output reg  [DW-1:0] tdata_m,
@@ -138,6 +138,8 @@ module receiver_compensation #(
             tuser_m  <= user_0;
         end
     end
+
+    assign tready_s = tready_m;
 
     `include "ahb_intf_receiver_compensation.v"
 endmodule

@@ -78,9 +78,9 @@ module prominence_analysis #(
                 diff_last   <= diff;
                 val_last    <= tdata_s;
                 val_last_1  <= val_last;
-
-                frame_start <= tuser_s;
             end
+
+            frame_start <= tuser_s && tvalid_s && tready_s;
         end
         end
     end

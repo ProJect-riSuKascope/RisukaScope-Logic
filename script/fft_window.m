@@ -1,5 +1,5 @@
 % FFT window Designer
-fraction_bits = 16; % Fraction bits
+fraction_bits = 15; % Fraction bits
 window_len = 1024;
 filename = 'fft_window_hamming.mem';
 
@@ -13,7 +13,7 @@ full_path = mfilename('fullpath');
 [path, ~] = fileparts(full_path);
 path = strrep(path, '\script', '\data\');
 fptr = fopen([path filename], 'w');
-for i = 1:length(window_fixed) - 1
+for i = 1:length(window_fixed)
     fprintf(fptr, '%s\n', comp_coe_hex(i, end - 3 : end));
 end
 fclose(fptr);

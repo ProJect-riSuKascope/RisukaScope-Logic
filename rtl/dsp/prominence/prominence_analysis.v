@@ -411,11 +411,10 @@ module prominence_analysis #(
         else begin
         if(ce) begin
             buffer_rdata_i <= prom_buff[buffer_addr_i];
+            buffer_rdata_m <= prom_buff[buffer_addr_m];
             
             if(buffer_wr_m)
                 prom_buff[buffer_addr_m] <= buffer_wdata_m;
-            else
-                buffer_rdata_m <= prom_buff[buffer_addr_m];
         end
         end
     end

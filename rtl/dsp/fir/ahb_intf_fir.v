@@ -150,8 +150,8 @@
     end
     endtask
 
-    always @(posedge hclk, negedge hresetn) begin
-        if(!hresetn) begin
+    always @(posedge clk, negedge reset_n) begin
+        if(!reset_n) begin
             // Reset AHB interface
             haddr_last  <= 0;
 

@@ -5,6 +5,8 @@ rtl/commerical
 
 # AHB FRBM instruction
 *.m2d
+# Large fri files
+*.fri
 # Compiled data files
 *.mem
 # Python cache

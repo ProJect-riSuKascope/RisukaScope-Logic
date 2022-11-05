@@ -49,9 +49,9 @@ module dsp_subsystem(
     output wire        tready_s
 );
     // Module initialzation file
-    localparam MEM_FILE_CICC = "../data/compensation_8.mem";
-    localparam MEM_FILE_FFTW = "";
-    localparam MEM_FILE_RECC = "";
+    localparam MEM_FILE_CICC = "../data/compensation_16.mem";
+    localparam MEM_FILE_FFTW = "../data/fft_window_hamming.mem";
+    localparam MEM_FILE_RECC = "../data/recv_comp.mem";
 
     // AHB Slave decoder
     wire hsel_agc, hsel_cic, hsel_cic_comp, hsel_fft_win, 

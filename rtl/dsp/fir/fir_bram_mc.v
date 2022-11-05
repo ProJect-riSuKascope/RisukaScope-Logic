@@ -51,8 +51,10 @@ module fir_bram_mc #(
 
     output reg  [31:0]     hrdata_s,
     output reg  [31:0]     hreadyout_s,
-    output reg             hresp_s
+    output reg             hresp_s,
     // Exlusive transfer is not available, thus HEXOKAY signal is not used.
+
+    input  wire            hsel_s
 );
 
     // Interface signals
@@ -64,10 +66,13 @@ module fir_bram_mc #(
     reg                coeff_we;
     reg  signed [15:0] rd_coeff;
 
+    // Coefficient buffer
     reg  [15:0] coeffs  [0:1023];
     initial begin
         $readmemh(MEM_FILE, coeffs);    
     end
+
+    reg  [9:0] wr_ptr, rd_ptr;
 
     always @(posedge clk, negedge reset_n) begin
         if(!reset_n)
@@ -85,7 +90,6 @@ module fir_bram_mc #(
     wire [15:0] rate   = reg_ctrl[31:16];
 
     // FIR Filter
-    reg  [9:0] wr_ptr, rd_ptr;
     reg  [9:0] cycle;
 
     reg         [15:0] buffer[0:1023];

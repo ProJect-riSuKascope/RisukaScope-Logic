@@ -98,7 +98,6 @@
                   A large memory block with a reset will be synthized into a SSRAM composing by
                   lots of registers and LUTs.
         */
-        reg_ctrl <= 32'h0000_0001;
     end
     endtask
 
@@ -142,8 +141,8 @@
     end
     endtask
 
-    always @(posedge hclk, negedge hresetn) begin
-        if(!hresetn) begin
+    always @(posedge clk, negedge reset_n) begin
+        if(!reset_n) begin
             // Reset AHB interface
             haddr_last  <= 0;
 

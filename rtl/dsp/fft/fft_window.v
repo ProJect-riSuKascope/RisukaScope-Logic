@@ -40,8 +40,9 @@ module fft_window #(
 
     output reg  [31:0]     hrdata_s,
     output reg  [31:0]     hreadyout_s,
-    output reg             hresp_s
+    output reg             hresp_s,
     // Exlusive transfer is not available, thus HEXOKAY signal is not used.
+    input  wire            hsel_s
 );
 
 

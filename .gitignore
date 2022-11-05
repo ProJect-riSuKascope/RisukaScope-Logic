@@ -5,6 +5,7 @@ rtl/commerical
 
 # AHB FRBM instruction
 *.m2d
+*.fri
 # Compiled data files
 *.mem
 # Python cache
@@ -24,6 +25,7 @@ rtl/graphic/ip/hdmi_tx
 !hdmi_tx.ipc
 rtl/graphic/ip/vdma
 !vdma.ipc
+rtl/graphic/ip/ddr3_memory_interface
 
 # MCU core
 rtl/mcu/ip/gowin_picorv32

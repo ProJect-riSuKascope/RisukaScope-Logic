@@ -1,26 +1,36 @@
-/*
-    box_unit.v
-    Box(Line) drawing
-    
-    Copyright _silence_575
-    Nov 04 2022
-    Rev 3
-*/
+`timescale 1ns / 1ps
+//////////////////////////////////////////////////////////////////////////////////
+// Company: 
+// Engineer: 
+// 
+// Create Date: 2022/11/03 17:44:07
+// Design Name: 
+// Module Name: box_out
+// Project Name: 
+// Target Devices: 
+// Tool Versions: 
+// Description: 
+// 
+// Dependencies: 
+// 
+// Revision:
+// Revision 0.01 - File Created
+// Additional Comments:
+// 
+//////////////////////////////////////////////////////////////////////////////////
 
 module box_unit(
     input clk,
     input reset_n,
     input start,
-
-    input  [11:0] width,
-    input  [3:0]  fg_color,
-    input  [3:0]  bg_color,
-    output [3:0]  pix_out,
-
-    output        done,
+    input [3:0] fg_color,
+    input [3:0] bg_color,
+    output [3:0] pix_out,
+    output done,
     output [11:0] delta_x,
-    output        wr    
-);
+    input [11:0] width,
+    output wr    
+    );
     
     wire en;
     wire data;
@@ -36,7 +46,7 @@ module box_unit(
         .delta_x(delta_x),
         .width(width),
         .wr(wr)
-    );
+        );
 
     FB_1 FB_1_U1(
         .start(start),
@@ -44,40 +54,40 @@ module box_unit(
         .bg_color(bg_color),
         .data(data),
         .pix_out(pix_out)
-    );
+        );
+    
+    
+    
 endmodule
 
 module box_out(
     input clk,
     input reset_n,
     input en,
-
     output reg done,
-
     output reg data,
     output reg [11:0] delta_x,
-    input      [11:0] width,
+    input [11:0] width,
     output reg wr
-);
+    );
     
-    reg [11:0] width_reg;
-    reg [11:0] x;                  
     
-    reg FSM;
-    reg state;
+    reg [11:0] width_reg;              //���Ȼ���   
+    reg [11:0] width_reg1;
     
-
+    reg [11:0] x;                        // delta_x���棨��˼��������ܣ�                     
     
-    always@(posedge en)
-    begin   
-        state <= 1'b1;
+    reg FSM;                            //״̬��
+    reg state;                          //ָʾģ���Ƿ���ʹ�õļĴ���
+    
+    always@(posedge clk)
+    begin
+        width_reg1 <= width; 
+        if(state)
+            width_reg <= width_reg1; 
     end
     
-    always@(posedge state)
-    begin   
-        width_reg <= width;
-    end
-    
+    //����
     task count_x();
     begin
         if(~reset_n)
@@ -89,6 +99,8 @@ module box_out(
     end
     endtask
     
+    
+    //���
     task out();
     begin
         delta_x <= x;
@@ -128,8 +140,11 @@ module box_out(
             data <= 1'b0;
             delta_x <= 'd0;
             x <= 'd0;
+
             if(state)
-            FSM <= DATA_OUT;
+                FSM <= DATA_OUT;
+            if(en)   
+                state <= 1'b1;
         end
         DATA_OUT:begin
             wr <= 1'b1;

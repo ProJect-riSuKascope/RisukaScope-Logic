@@ -1,32 +1,42 @@
-/*
-    string_unit.v
-    String write
-    
-    Copyright _silence_575
-    Nov 04 2022
-    Rev 3
-*/
+`timescale 1ns / 1ps
+//////////////////////////////////////////////////////////////////////////////////
+// Company: 
+// Engineer: 
+// 
+// Create Date: 2022/11/01 21:31:49
+// Design Name: 
+// Module Name: string_out
+// Project Name: 
+// Target Devices: 
+// Tool Versions: 
+// Description: 
+// 
+// Dependencies: 
+// 
+// Revision:
+// Revision 0.01 - File Created
+// Additional Comments:
+// 
+//////////////////////////////////////////////////////////////////////////////////
 
 
 module string_unit(
     input clk,
     input reset_n,
-
-    input [3:0]  delta_y,
-    input [3:0]  fg_color,
-    input [3:0]  bg_color,
+    input start,
+    input [3:0] delta_y,
+    input [3:0] fg_color,
+    input [3:0] bg_color,
     input [11:0] addr,
-
-    input [7:0]  char_in,
-    output[11:0] addr_out,
-
+    input [7:0] char_in,
+    output addr_out,
+    output done,
     output [7:0] delta_x,
     output [3:0] pix_out,
-    output       wr,
-
-    output       done,
-    input        start
-);
+    output wr
+    
+    
+    );
     
     wire [3:0] delay_y;
     wire [7:0] char;
@@ -81,35 +91,33 @@ module string_out(
     output reg wr
     );
     
-    reg [7:0] string_rom [0:1023]; 
+    reg [7:0] string_rom [0:1023];      //��ģrom
     
-    reg [7:0] string_reg; 
+    reg [7:0] string_reg;              //��ģ����   
     
-    reg [7:0] char_data;
-    reg [3:0] y;
-    reg [3:0] x;                 
-    reg [7:0] count;
+    reg [7:0] char_data;                //��ַ����
+    reg [7:0] char_data1;                
+    reg [3:0] y;                        //delta_y����
+    reg [3:0] y1;
+    reg [3:0] x;                        // delta_x���棨��˼��������ܣ�                     
+    reg [7:0] count;                    //���뻺��
     
-    reg [1:0] FSM;
-    reg state;
+    reg [1:0] FSM;                      //״̬��
+    reg state;                          //ָʾģ���Ƿ���ʹ�õĻ���
     
-    wire [15:0] addr;
-    wire [7:0] case_1;
-    wire case_2;
+    wire [15:0] addr;                   //��ַ�� ����Ѱַ
+    wire [7:0] case_1;                  //ѡ���·
+    wire case_2;                        //ѡ���·
     
-    always@(posedge en)
-    begin   
-        state <= 1'b1;
+    always@(posedge clk)
+    begin
+        char_data1 <= char;
+        y1 <= delta_y;
     end
-    
-    always@(posedge state)
-    begin   
-        char_data <= char;
-        y <= delta_y;
-    end
-    
+    //��ַ����
     assign addr = (char_data << 2) + y;
     
+    //��ģ��ȡ
     task string_read();
     begin
         if(~reset_n)
@@ -121,6 +129,7 @@ module string_out(
     end
     endtask
     
+    //����
     task count_x();
     begin
         if(~reset_n)
@@ -132,9 +141,11 @@ module string_out(
     end
     endtask
     
+    //�ȶ����
     assign case_1 = count & string_reg;
     assign case_2 = |case_1;
     
+    //���
     task out();
     begin
         data <= case_2;
@@ -179,8 +190,16 @@ module string_out(
             x <= 3'd0;
             delta_x <= 'd0;
             count <= 'd0; 
+
             if(state)
-            FSM <= STRING_OUT;
+                FSM <= STRING_OUT;
+            
+            if(en)
+            begin   
+                state <= 1'b1;
+                char_data <= char_data1;
+                y <= y1;
+            end
         end
         STRING_OUT:begin
             string_read();
@@ -205,6 +224,7 @@ module string_out(
     
     end
     
+    //������
     always@(*)
     begin
     case(x)
@@ -236,11 +256,12 @@ module addr_in(
     );
     
     reg state;
+    reg [11:0] addr_out1;
+    reg [3:0] delay_y_out1;
     
-    always@(posedge start, negedge reset_n)
+    always@(posedge clk, negedge reset_n)     
         begin
-            if(!reset_n)
-            begin
+            if(!reset_n) begin
                 addr_out <= 'd0;
                 delay_y_out <= 'd0;
                 char <= 'd0;
@@ -248,9 +269,14 @@ module addr_in(
                 state <= 1'b0;
             end
             else begin
-            addr_out <= addr;
-            delay_y_out <= delta_y;
-            state <= 1'b1; 
+                addr_out1 <= addr;
+                delay_y_out1 <= delta_y;
+                delay_y_out <= delay_y_out1;
+
+                if(start) begin
+                    addr_out <= addr_out1;
+                    state <= 1'b1;
+                end
             end
         end
     

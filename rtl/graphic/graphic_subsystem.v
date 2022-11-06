@@ -129,7 +129,7 @@ module graphic_subsystem (
     // PLL for Video pixel
     wire clk_pixel;
 
-    pll_video clk_video_gen(
+    pll_pixel clk_video_gen(
         .clkin (hclk),
         .clkout(clk_pixel)
     );

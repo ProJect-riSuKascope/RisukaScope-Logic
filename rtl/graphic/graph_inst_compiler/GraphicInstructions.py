@@ -54,6 +54,10 @@ class GIString(InstBase):
     data_addr: int = None
 
     def __init__(self, x0, y0, y1, text, fg_color, bg_color, scale):
+        self.x0 = x0
+        self.y0 = y0
+        self.y1 = y1
+
         self.data = text
         self.fg_color = fg_color
         self.bg_color = bg_color
@@ -100,6 +104,12 @@ class GIBox(InstBase):
         start = ({self.x0},{self.y0}), end_y = {self.y1},
         Width = {self.w}
         front color = {self.fg_color}, back color = {self.bg_color}'''
+
+    def _compile_w0(self):
+        return self.y0 | (self.y1 << 12) | (self.opcode << 24) | (self.x0 << 27)
+
+    def _compile_w1(self):
+        return ((self.x0 >> 5) & 0x7F) | (self.w << 7) | (self.fg_color << 20) | (self.bg_color << 24)
 
 class GIChart(InstBase):
     color_0: int

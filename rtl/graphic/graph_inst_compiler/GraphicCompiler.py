@@ -112,7 +112,6 @@ if __name__ == '__main__':
     g = GraphicCompiler(verbose)
     
     for v in m.insts:
-
         if isinstance(v, str):
             g.label(v)
         else:

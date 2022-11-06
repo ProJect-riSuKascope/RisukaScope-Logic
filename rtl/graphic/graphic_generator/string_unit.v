@@ -237,23 +237,24 @@ module addr_in(
     
     reg state;
     
-    always@(negedge reset_n)
+    always@(posedge start, negedge reset_n)
         begin
-        addr_out <= 'd0;
-        delay_y_out <= 'd0;
-        char <= 'd0;
-        en <= 1'b0;
-        state <= 1'b0;
-        end
-    
-    always@(posedge start)     
-        begin
+            if(!reset_n)
+            begin
+                addr_out <= 'd0;
+                delay_y_out <= 'd0;
+                char <= 'd0;
+                en <= 1'b0;
+                state <= 1'b0;
+            end
+            else begin
             addr_out <= addr;
             delay_y_out <= delta_y;
             state <= 1'b1; 
+            end
         end
     
-    always@(posedge clk or negedge reset_n)     
+    always@(posedge clk)     
         begin
             if(state)
                 begin

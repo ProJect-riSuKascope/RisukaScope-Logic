@@ -17,7 +17,10 @@
     limitations under the License.
 */
 module graphic_generator#(
-    parameter INST_BUFFER_MIF = "test.mem"
+    parameter MIF_INST    = "inst.mem",
+    parameter MIF_PALETTE = "palette.mem",
+    parameter MIF_STRING  = "string.mem",
+    parameter MIF_CHART   = "chart.mem"
 )(
     input  wire hclk,
     input  wire hresetn,
@@ -68,11 +71,9 @@ module graphic_generator#(
     reg  [8:0]  pc;
 
     reg  [31:0] inst[0:511];
-    `ifdef DEBUG_INST
     initial begin
-        $readmemh(INST_BUFFER_MIF, inst);
+        $readmemh(MIF_INST, inst);
     end
-    `endif      // DEBUG_INST
 
     wire [7:0]  inst_ar = pc;
     reg  [7:0]  inst_r;
@@ -140,18 +141,15 @@ module graphic_generator#(
 
     // Palette
     reg  [15:0] palette[0:15];
-    `ifdef DEBUG_INST
     integer i;
     initial begin
-        for(i = 0; i < 16;i = i + 1)
-            palette[i] <= {$random} % 65536;
+        $readmemh(MIF_PALETTE, palette);
     end
-    `endif
 
     reg  [15:0] palette_w;
     reg         palette_we;
 
-    always @(posedge hclk, negedge hresetn) begin
+    always @(posedge hclk) begin
         if(palette_we)
             palette[haddr_last[3:0]] <= hwdata_s[15:0];
     end
@@ -159,8 +157,11 @@ module graphic_generator#(
     // String buffer
     // The GowinSynthesis is quite silly here
     reg  [7:0]  str_buffer[0:2047];
+    initial begin
+        $readmemh(MIF_STRING, str_buffer);
+    end
 
-    reg  [11:0] str_buffer_ar;
+    wire [11:0] str_buffer_ar;
     reg  [7:0]  str_buffer_r;
     reg         str_buffer_we;
 
@@ -214,24 +215,24 @@ module graphic_generator#(
     );
     `else
     string_unit str_inst(
-        .clk(hclk),
-        .reset_n(hresetn),
+        .clk     (hclk),
+        .reset_n (hresetn),
         
         // Parameters
-        .dy        (dy),
-        .base_addr (str_addr),
+        .delta_y   (dy),
+        .addr      (str_addr),
         .fg_color  (fg_color),
         .bg_color  (bg_color),
-        .scale     (ch_scale),
+        //.scale     (ch_scale),
 
         // String buffer access
-        .char_addr (str_buffer_ar),
-        .char_data (str_buffer_r),
+        .addr_out  (str_buffer_ar),
+        .char_in   (str_buffer_r),
 
         // Pixel output
-        .dx        (pix_str_x),
-        .pixel_sel (pix_str_d),
-        .pixel_wr  (pix_str_wr),
+        .delta_x   (pix_str_x),
+        .pix_out   (pix_str_d),
+        .wr        (pix_str_wr),
 
         // Control signals
         .start (inst_start && str_en),
@@ -269,20 +270,19 @@ module graphic_generator#(
         .done  (lin_done)
     );
     `else
-    lin_unit lin_inst(
-        .clk(hclk),
-        .reset_n(hresetn),
+    box_unit box_inst(
+        .clk     (hclk),
+        .reset_n (hresetn),
         
         // Parameters
-        .dy        (dy),
         .width     (lin_w),
         .fg_color  (fg_color),
         .bg_color  (bg_color),
 
         // Pixel output
-        .dx        (pix_lin_x),
-        .pixel_sel (pix_lin_d),
-        .pixel_wr  (pix_lin_wr),
+        .pix_out   (pix_lin_d),
+        .delta_x   (pix_lin_x),
+        .wr        (pix_lin_wr),
 
         // Control signals
         .start (inst_start && lin_en),
@@ -294,7 +294,9 @@ module graphic_generator#(
     // Chart data buffer
     // ...And also here
     reg  [7:0]  chart_buffer[0:1023];
-
+    initial begin
+        $readmemh(MIF_CHART, str_buffer);
+    end
     reg  [11:0] chart_buffer_ar;
     reg  [7:0]  chart_buffer_r;
     reg  [7:0]  chart_buffer_we;
@@ -366,7 +368,7 @@ module graphic_generator#(
 
         // Pixel output
         .dx        (pix_chart_x),
-        .pixel_sel (pix_chart_d),
+        .pixel     (pix_chart_d),
         .pixel_wr  (pix_chart_wr),
 
         // Fetch data

@@ -33,9 +33,9 @@ module graphic_subsystem (
     input  wire [31:0]     hwdata_s,
     input  wire            hwrite_s,
 
-    output reg  [31:0]     hrdata_s,
-    output reg             hreadyout_s,
-    output reg             hresp_s,
+    output wire [31:0]     hrdata_s,
+    output wire            hreadyout_s,
+    output wire            hresp_s,
     // Exlusive transfer is not available, thus HEXOKAY signal is not used.
 
     input  wire            hsel_s,
@@ -74,7 +74,10 @@ module graphic_subsystem (
 );
 
     // Parameters
-    localparam INST_BUFFER_MIF = "test.mem";
+    localparam MIF_INST    = "inst.mem";
+    localparam MIF_PALETTE = "palette.mem";
+    localparam MIF_STRING  = "string.mem";
+    localparam MIF_CHART   = "chart.mem";
 
     // Video generator
     wire  [15:0] tdata_video;
@@ -84,7 +87,10 @@ module graphic_subsystem (
     wire         tready_video;
 
     graphic_generator #(
-      .INST_BUFFER_MIF (INST_BUFFER_MIF )
+        .MIF_INST    ("D:/Concordia_Projects/Project_PlatinumCollapsaR/fpga/rtl/graphic/graph_inst_compiler.mem"),
+        .MIF_PALETTE ("D:/Concordia_Projects/Project_PlatinumCollapsaR/fpga/data/palette.mem"),
+        .MIF_STRING  (""),
+        .MIF_CHART   ("")
     ) gen_0(
       .hclk    (hclk ),
       .hresetn (hresetn ),

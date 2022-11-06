@@ -56,8 +56,8 @@ module graphic_generator#(
     input  wire        tready_m
 );
     // Screen parameters
-    localparam ACTIVE_HORI = 320;
-    localparam ACTIVE_VERT = 240;
+    localparam ACTIVE_HORI = 1024;
+    localparam ACTIVE_VERT = 768;
 
     // AHB Access
     reg  [15:0] haddr_last;
@@ -220,14 +220,14 @@ module graphic_generator#(
         
         // Parameters
         .delta_y   (dy),
-        .addr      (str_addr),
+        .base_addr (str_addr),
         .fg_color  (fg_color),
         .bg_color  (bg_color),
-        //.scale     (ch_scale),
+        .scale     (ch_scale),
 
         // String buffer access
-        .addr_out  (str_buffer_ar),
-        .char_in   (str_buffer_r),
+        .char_addr (str_buffer_ar),
+        .char_data (str_buffer_r),
 
         // Pixel output
         .delta_x   (pix_str_x),
@@ -377,7 +377,7 @@ module graphic_generator#(
 
         // Control signals
         .start (inst_start && chart_en),
-        .done  (str_done)
+        .done  (chart_done)
     );
     `endif      // DEBUG_INST @ Chart
 

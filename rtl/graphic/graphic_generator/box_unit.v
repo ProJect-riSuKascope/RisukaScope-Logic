@@ -1,196 +1,87 @@
-`timescale 1ns / 1ps
-//////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: 
-// 
-// Create Date: 2022/11/03 17:44:07
-// Design Name: 
-// Module Name: box_out
-// Project Name: 
-// Target Devices: 
-// Tool Versions: 
-// Description: 
-// 
-// Dependencies: 
-// 
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-// 
-//////////////////////////////////////////////////////////////////////////////////
+/*
+    box_unit.v
+    Box unit
+*/
 
 module box_unit(
-    input clk,
-    input reset_n,
-    input start,
-    input [3:0] fg_color,
-    input [3:0] bg_color,
-    output [3:0] pix_out,
-    output done,
-    output [11:0] delta_x,
-    input [11:0] width,
-    output wr    
-    );
-    
-    wire en;
-    wire data;
-    
-    assign en = start;
-    
-    box_out box_out_U0(
-        .clk(clk),
-        .reset_n(reset_n),
-        .en(en),
-        .done(done),
-        .data(data),
-        .delta_x(delta_x),
-        .width(width),
-        .wr(wr)
-        );
+    input wire clk,
+    input wire reset_n,
 
-    FB_1 FB_1_U1(
-        .start(start),
-        .fg_color(fg_color),
-        .bg_color(bg_color),
-        .data(data),
-        .pix_out(pix_out)
-        );
+    input  wire [11:0]  width,
+    input  wire [3:0]   fg_color,
+    input  wire [3:0]   bg_color,       // Unused
     
+    output reg  [3:0]   pix_out,
+    output reg  [11:0]  delta_x,
+    output reg          wr,
     
+    input  wire start,
+    output reg  done
+);
     
-endmodule
+    // Box FSM
+    reg  [11:0] width_cnt;
+    reg  [1:0]  stat;
 
-module box_out(
-    input clk,
-    input reset_n,
-    input en,
-    output reg done,
-    output reg data,
-    output reg [11:0] delta_x,
-    input [11:0] width,
-    output reg wr
-    );
-    
-    
-    reg [11:0] width_reg;              //���Ȼ���   
-    reg [11:0] width_reg1;
-    
-    reg [11:0] x;                        // delta_x���棨��˼��������ܣ�                     
-    
-    reg FSM;                            //״̬��
-    reg state;                          //ָʾģ���Ƿ���ʹ�õļĴ���
-    
-    always@(posedge clk)
-    begin
-        width_reg1 <= width; 
-        if(state)
-            width_reg <= width_reg1; 
-    end
-    
-    //����
-    task count_x();
-    begin
-        if(~reset_n)
-            x <= 12'd0;
-        else if(x == width_reg - 1)
-            x <= 12'd0;
-        else
-            x = x + 12'd1;
-    end
-    endtask
-    
-    
-    //���
-    task out();
-    begin
-        delta_x <= x;
-        if(x == width_reg - 1)
-            begin
-            done <= 1'b1;
-            data <= 1'b1;
+    localparam STAT_IDLE = 2'b00;
+    localparam STAT_DRAW = 2'b01;
+    localparam STAT_DONE = 2'b10;
+
+    always @(posedge clk, negedge reset_n) begin
+        if(!reset_n) begin
+            width_cnt <= 12'h0;
+
+            stat      <= STAT_IDLE;
+        end
+        else begin
+            case(stat)
+            STAT_IDLE:begin
+                if(start) begin
+                    width_cnt <= width;
+                    stat      <= STAT_DRAW;
+                end
             end
-        else
-            begin
-            done <= 1'b0;
-            data <= 1'b1;
+            STAT_DRAW:begin
+                if(width_cnt == 0)
+                    stat <= STAT_DONE;
+                else
+                    width_cnt <= width_cnt - 1;
             end
-    end
-    endtask
-    
-    localparam DATA_OUT = 1'b1;
-    localparam IDLE = 1'b0;
-    
-    //FSM
-    always@(posedge clk or negedge reset_n)
-    begin
-    if(~reset_n)
-        begin
-        FSM <= IDLE;
-        x <= 12'd0;
-        delta_x <= 12'd0;
-        state <= 1'b0;
-        done <= 1'b0;
-        data <= 1'b0;
+            STAT_DONE:stat <= STAT_IDLE;
+            endcase
         end
-    else
-        case(FSM)
-        IDLE:begin
-            wr <= 1'b0;
-            done <= 1'b0;
-            data <= 1'b0;
-            delta_x <= 'd0;
-            x <= 'd0;
+    end
 
-            if(state)
-                FSM <= DATA_OUT;
-            if(en)   
-                state <= 1'b1;
+    always @(*) begin
+        case(stat)
+        STAT_IDLE:begin
+            pix_out = 4'h0;
+            delta_x = 0;
+            wr      = 1'b0;
+
+            done    = 1'b0;
         end
-        DATA_OUT:begin
-            wr <= 1'b1;
-            if(x == width_reg - 1)
-                begin
-                out(); 
-                count_x();
-                FSM <= IDLE;
-                state <= 1'b0;
-                end 
-            else
-                begin
-                out(); 
-                count_x();
-                end        
+        STAT_DRAW:begin
+            pix_out = fg_color;
+            delta_x = width_cnt;
+            wr      = 1'b1;
+
+            done    = 1'b0;
         end
-    endcase
-    
-    end
+        STAT_DONE:begin
+            pix_out = 4'h0;
+            delta_x = 0;
+            wr      = 1'b0;
 
-endmodule
+            done    = 1'b1;
+        end
+        default:begin
+            pix_out = 4'h0;
+            delta_x = 0;
+            wr      = 1'b0;
 
-module FB_1(
-    input start,
-    input [3:0] fg_color,
-    input [3:0] bg_color,
-    input data, 
-    output reg [3:0] pix_out
-    );
-    
-    reg [3:0] fg_reg;
-    reg [3:0] bg_reg;
-    
-    always@(posedge start)
-    begin
-        fg_reg <= fg_color;
-        bg_reg <= bg_color;
+            done    = 1'b0;
+        end
+        endcase
     end
-    
-    always@(*)
-    begin
-    case(data)
-        1'b0:pix_out <= bg_reg;
-        1'b1:pix_out <= fg_reg;
-    endcase
-    end
-    
-
 endmodule

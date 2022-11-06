@@ -20,307 +20,233 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-module string_unit(
-    input clk,
-    input reset_n,
-    input start,
-    input [3:0] delta_y,
-    input [3:0] fg_color,
-    input [3:0] bg_color,
-    input [11:0] addr,
-    input [7:0] char_in,
-    output addr_out,
-    output done,
-    output [7:0] delta_x,
-    output [3:0] pix_out,
-    output wr
+module string_unit#(
+    parameter MIF_FONTROM = "font_rom.mem"
+)(
+    input  wire clk,
+    input  wire reset_n,
     
-    
-    );
-    
-    wire [3:0] delay_y;
-    wire [7:0] char;
-    wire en;
-    wire data;
-    
-    addr_in addr_in_U0(
-        .clk(clk),
-        .reset_n(reset_n),
-        .start(start),
-        .delta_y(delta_y),
-        .addr(addr),
-        .addr_out(addr_out),
-        .char_in(char_in),
-        .delay_y_out(delay_y),
-        .char(char),
-        .en(en)
-        );
-    
-    string_out string_out_U1(
-        .clk(clk),
-        .reset_n(reset_n),
-        .delta_y(delay_y),
-        .en(en),
-        .done(done),
-        .data(data),
-        .delta_x(delta_x),
-        .char(char),
-        .wr(wr)
-        );
+    input  wire [3:0]  delta_y,
+    input  wire [3:0]  fg_color,
+    input  wire [3:0]  bg_color,
+    input  wire [11:0] base_addr,
+    input  wire [1:0]  scale,
 
-    FB FB_U2(
-        .start(start),
-        .fg_color(fg_color),
-        .bg_color(bg_color),
-        .data(data),
-        .pix_out(pix_out)
-        );
-
-endmodule
-
-
-module string_out(
-    input clk,
-    input reset_n,
-    input [3:0] delta_y,
-    input en,
-    output reg done,
-    output reg data,
+    input  wire [7:0]  char_data,
+    output reg  [11:0] char_addr,
+    
     output reg [7:0] delta_x,
-    input [7:0] char,
-    output reg wr
-    );
-    
-    reg [7:0] string_rom [0:1023];      //��ģrom
-    
-    reg [7:0] string_reg;              //��ģ����   
-    
-    reg [7:0] char_data;                //��ַ����
-    reg [7:0] char_data1;                
-    reg [3:0] y;                        //delta_y����
-    reg [3:0] y1;
-    reg [3:0] x;                        // delta_x���棨��˼��������ܣ�                     
-    reg [7:0] count;                    //���뻺��
-    
-    reg [1:0] FSM;                      //״̬��
-    reg state;                          //ָʾģ���Ƿ���ʹ�õĻ���
-    
-    wire [15:0] addr;                   //��ַ�� ����Ѱַ
-    wire [7:0] case_1;                  //ѡ���·
-    wire case_2;                        //ѡ���·
-    
-    always@(posedge clk)
-    begin
-        char_data1 <= char;
-        y1 <= delta_y;
-    end
-    //��ַ����
-    assign addr = (char_data << 2) + y;
-    
-    //��ģ��ȡ
-    task string_read();
-    begin
-        if(~reset_n)
-            string_reg <= 8'd0;
-        else if(state)
-            string_reg <= string_rom[addr];
-        else
-            string_reg <= 8'd0;
-    end
-    endtask
-    
-    //����
-    task count_x();
-    begin
-        if(~reset_n)
-            x <= 3'd0;
-        else if(x == 3'd7)
-            x <= 3'd0;
-        else
-            x = x + 1'd1;
-    end
-    endtask
-    
-    //�ȶ����
-    assign case_1 = count & string_reg;
-    assign case_2 = |case_1;
-    
-    //���
-    task out();
-    begin
-        data <= case_2;
-        delta_x <= x;
-        if(x == 3'd7)
-            done <= 1'b1;
-        else
-            done <= 1'b0;
-    end
-    endtask
-    
-    localparam STRING_OUT = 2'b01;
-    localparam DATA_OUT = 2'b10;
-    localparam IDLE = 2'b00;
-    
-    //FSM
-    always@(posedge clk or negedge reset_n)
-    begin
-    if(~reset_n)
-        begin
-        FSM <= IDLE;
-        x <= 3'd0;
-        y <= 3'd0;
-        string_reg <= 8'd0;
-        done <= 1'b0;
-        data <= 1'b0;
-        delta_x <= 'd0;
-        char_data <= 'd0;
-        state <= 1'b0;
-        count <= 'd0;
-        wr <= 1'b0;
-        end
-    else
-        case(FSM)
-        IDLE:begin
-            state <= 1'b0;
-            wr <= 1'b0;
-            done <= 1'b0;
-            data <= 1'b0;
-            string_reg <= 8'd0;
-            char_data <= 'd0;
-            x <= 3'd0;
-            delta_x <= 'd0;
-            count <= 'd0; 
+    output reg [3:0] pix_out,
+    output reg       wr,
 
-            if(state)
-                FSM <= STRING_OUT;
-            
-            if(en)
-            begin   
-                state <= 1'b1;
-                char_data <= char_data1;
-                y <= y1;
-            end
-        end
-        STRING_OUT:begin
-            string_read();
-            wr <= 1'b0; 
-            FSM <= DATA_OUT;
-        end
-        DATA_OUT:begin
-            wr <= 1'b1;
-            if(x == 3'd7)
-                begin
-                out(); 
-                count_x();
-                FSM <= IDLE;
-                end 
-            else
-                begin
-                out(); 
-                count_x();
-                end        
-        end
-    endcase
-    
+    input  wire start,
+    output reg  done
+);
+
+    // Font ROM
+    reg  [31:0] font_rom [0:511];
+    initial begin
+        $readmemh(MIF_FONTROM, font_rom);
     end
-    
-    //������
-    always@(*)
-    begin
-    case(x)
-    3'd0: count <= 8'b00000001;
-    3'd1: count <= 8'b00000010;
-    3'd2: count <= 8'b00000100;
-    3'd3: count <= 8'b00001000;
-    3'd4: count <= 8'b00010000;
-    3'd5: count <= 8'b00100000;
-    3'd6: count <= 8'b01000000;
-    3'd7: count <= 8'b10000000;
-    endcase
+
+    reg  [31:0] font_rom_r;
+    reg  [8:0]  font_rom_addr;
+
+    always @(posedge clk) begin
+        font_rom_r <= font_rom[font_rom_addr];     
     end
-    
-endmodule
 
+    // String FSM
+    reg  [2:0]  stat;
+    reg  [3:0]  scale_cnt_max;
+    reg  [3:0]  scale_cnt_x, scale_cnt_y;
+    reg  [3:0]  char_x, char_y;
 
-module addr_in(
-    input clk,
-    input reset_n,
-    input start,
-    input [3:0] delta_y,
-    input [11:0] addr,
-    input [7:0] char_in,
-    output reg [11:0] addr_out,
-    output reg [3:0] delay_y_out,
-    output reg [7:0] char,
-    output reg en
-    );
-    
-    reg state;
-    reg [11:0] addr_out1;
-    reg [3:0] delay_y_out1;
-    
-    always@(posedge clk, negedge reset_n)     
-        begin
-            if(!reset_n) begin
-                addr_out <= 'd0;
-                delay_y_out <= 'd0;
-                char <= 'd0;
-                en <= 1'b0;
-                state <= 1'b0;
-            end
-            else begin
-                addr_out1 <= addr;
-                delay_y_out1 <= delta_y;
-                delay_y_out <= delay_y_out1;
+    reg  [7:0]  font_line;
 
+    localparam STAT_IDLE  = 3'b000;
+    localparam STAT_READ  = 3'b001;
+    localparam STAT_DRAW  = 3'b010;
+    localparam STAT_DONE  = 3'b011;
+    localparam STAT_RECH0 = 3'b100;
+    localparam STAT_RECH1 = 3'b101;
+
+    always @(posedge clk, negedge reset_n) begin
+        if(!reset_n) begin
+            font_line <= 8'h0;
+
+            char_x    <= 'h0;
+            char_y    <= 'h0;
+            char_addr <= 'h0;
+
+            scale_cnt_x   <= 'h0;
+            scale_cnt_y   <= 'h0;
+            scale_cnt_max <= 'h0;
+
+            delta_x <= 'h0;
+
+            stat <= STAT_IDLE;
+        end
+        else begin
+            case(stat)
+            STAT_IDLE:begin
                 if(start) begin
-                    addr_out <= addr_out1;
-                    state <= 1'b1;
+                    delta_x   <= 0;
+                    char_addr <= base_addr;
+
+                    case(scale)
+                    2'b00:scale_cnt_max <= 4'd0;        // x1
+                    2'b10:scale_cnt_max <= 4'd1;        // x2
+                    2'b10:scale_cnt_max <= 4'd3;        // x4
+                    2'b11:scale_cnt_max <= 4'd7;        // x8
+                    endcase
+
+                    stat   <= STAT_READ;
                 end
             end
+            STAT_READ:begin
+                stat <= STAT_RECH0;
+            end
+            STAT_RECH0:begin
+                font_line <= font_rom_r;        // The 32-bit word including a line
+
+                stat      <= STAT_RECH1;
+            end
+            STAT_RECH1:begin
+                case(char_y[1:0])
+                2'b00:font_line   <= font_rom_r[7:0];
+                2'b01:font_line   <= font_rom_r[15:8];
+                2'b10:font_line   <= font_rom_r[23:16];
+                2'b11:font_line   <= font_rom_r[31:24];
+                default:font_line <= 32'h0000_0000;
+                endcase
+
+                scale_cnt_x <= scale_cnt_max;
+                char_x      <= 4'd0;
+                char_y      <= delta_y >> scale_cnt_max;
+
+                stat        <= STAT_DRAW;
+            end
+            STAT_DRAW:begin
+                if(char_data == 7'h0)           // '\0'
+                    stat <= STAT_DONE;
+                else begin     
+                    if(scale_cnt_x == 0) begin
+                        if(char_x == 4'd7) begin
+                            stat      <= STAT_READ;          // Read next char
+                            char_addr <= char_addr + 1;
+                        end
+                        else
+                            char_x <= char_x + 1;
+                    end
+                    else
+                        scale_cnt_x <= scale_cnt_x - 1;
+
+                    delta_x <= delta_x + 1;
+                end
+            end
+            STAT_DONE:begin
+                stat <= STAT_IDLE;
+            end
+            endcase
         end
-    
-    always@(posedge clk)     
-        begin
-            if(state)
-                begin
-                char <= char_in;
-                en <= 1'b1;
-                state <= 1'b0;
-                end
+    end
+
+    reg        pix_sel;
+    reg  [7:0] bit_mask; 
+
+    always @(*) begin
+        case(stat)
+        STAT_IDLE:begin
+            // Interface
+            pix_out   = 4'h0;
+
+            wr        = 1'b0;
+            done      = 1'b0;
+
+            // Font read
+            font_rom_addr = 'h0;
+
+            // Line read
+            bit_mask  = 'h0;
+            pix_sel   = 1'h0;
+        end
+        STAT_READ:begin
+            // Interface
+            pix_out   = 4'h0;
+            
+            wr        = 1'b0;
+            done      = 1'b0;
+
+            // Font read
+            font_rom_addr = 'h0;
+
+            // Line read
+            bit_mask  = 'h0;
+            pix_sel   = 1'h0;
+        end
+        STAT_RECH0:begin
+            // Interface
+            pix_out   = 4'h0;
+            
+            wr        = 1'b0;
+            done      = 1'b0;
+
+            // Font read
+            if((delta_y & 4'b0100))     // Bottom 4 lines
+                font_rom_addr = {char_data, 1'b1};
+            else                        // Upper 4 lines
+                font_rom_addr = {char_data, 1'b0};
+
+            // Line read
+            bit_mask  = 'h0;
+            pix_sel   = 1'h0;
+        end
+        STAT_RECH1:begin
+            // Interface
+            pix_out   = 4'h0;
+            
+            wr        = 1'b0;
+            done      = 1'b0;
+
+            // Font read
+            font_rom_addr = 'h0;
+
+            // Line read
+            bit_mask  = 'h0;
+            pix_sel   = 1'h0;
+        end
+        STAT_DRAW:begin
+            // Interface
+            if(pix_sel)
+                pix_out = fg_color;
             else
-                begin
-                en <= 1'b0;
-                end
-        end    
-      
-endmodule
+                pix_out = bg_color;
+            
+            wr        = 1'b1;        // Write
+            done      = 1'b0;
 
+            // Font read
+            font_rom_addr = 'h0;
 
-module FB(
-    input start,
-    input [3:0] fg_color,
-    input [3:0] bg_color,
-    input data, 
-    output reg [3:0] pix_out
-    );
-    
-    reg [3:0] fg_reg;
-    reg [3:0] bg_reg;
-    
-    always@(posedge start)
-    begin
-        fg_reg <= fg_color;
-        bg_reg <= bg_color;
+            // Line read
+            bit_mask = 8'b00000001 << char_x;
+            pix_sel  = |(bit_mask & font_line);
+        end
+        STAT_DONE:begin
+            // Interface
+            pix_out   = 4'h0;
+            
+            wr        = 1'b0;
+            done      = 1'b0;
+
+            // Font read
+            font_rom_addr = 'h0;
+
+            // Line read
+            bit_mask  = 'h0;
+            pix_sel   = 1'h0;
+        end
+        endcase
     end
-    
-    always@(*)
-    begin
-    case(data)
-        1'b0:pix_out <= bg_reg;
-        1'b1:pix_out <= fg_reg;
-    endcase
-    end
-    
-
 endmodule

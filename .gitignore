@@ -33,6 +33,9 @@ rtl/graphic/ip/pll_pixel
 rtl/mcu/ip/gowin_picorv32
 !Gowin_PicoRV32_Top.ipc
 
+# Common IPs
+rtl/common/ip/pll_sys
+
 # Legacy subsystem IPs
 rtl/subsystem/ddr3_2_ahb
 rtl/subsystem/frame_buffer_read

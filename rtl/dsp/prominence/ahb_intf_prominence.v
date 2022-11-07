@@ -79,13 +79,6 @@
 
                 'h1xxx:hrdata_s <= <memory>[haddr_s[15:0]];     // <memory> is mapped to 0x1000.
         */
-        casex(haddr_last)
-            'h0000:hrdata_s  = reg_ctrl;
-            'h0004:hrdata_s  = reg_stat;
-            'h1xxx:hrdata_s  = buffer_rdata_i;
-            'h2xxx:hrdata_s  = sorted[haddr_last[5:2]];
-            default:hrdata_s = reg_ctrl;
-        endcase
     end
     endtask
 

@@ -88,12 +88,8 @@ module fft_wrapper(
             end
             FFT_BEGIN:fft_stat <= FFT_READ;
             FFT_READ:begin
-                if(fft_input_end || (~fft_input_proc)) begin
-                    if(fifo_full_in)
-                        fft_stat <= FFT_BEGIN;
-                    else
-                        fft_stat <= FFT_IDLE;
-                end
+                if(fft_input_end || (~fft_input_proc))
+                    fft_stat <= FFT_IDLE;
             end
             endcase
         end

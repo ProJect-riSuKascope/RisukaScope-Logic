@@ -51,7 +51,7 @@ module random_wave_axis #(
         end
         else begin
             phase     <= PI * PHASE_INC * cnt;
-            value     <= $sin(phase);
+            value     <= $sin(phase) * 0.706;           // sqrt(2)
             data      <= $rtoi(factor * value * (1 << (DW-1)) );
             tdata_m_o <= data;
 

@@ -1,5 +1,5 @@
 /*
-    ahb_intf_cicdec.v
+    ahb_intf_fir.v
     AHB interface verilog header
 
     Copyright 2022 Hiryuu T. (PFMRLIB)
@@ -47,20 +47,11 @@
     input  wire            hsel_s
 
 */
-    
-    // Define the name of clock, reset and clock enable signal here.
-    `define AHB_CLOCK_NAME clk
-    `define AHB_RESET_NAME reset_n
-    `define AHB_CE_NAME    ce
-
     // ---------------------- Please DO NOT modify below this line ---------------------- 
     // AHB Interface
     // AHB signals
-    reg  [31:0] haddr_last;
     reg         hwrite_last;
     reg  [31:0] hwdata_last;
-
-    wire        ahb_writeable;
 
     // ---------------------- Please DO NOT modify above this line ---------------------- 
     task reg_read_ahb();
@@ -79,11 +70,9 @@
 
                 'h1xxx:hrdata_s <= <memory>[haddr_s[15:0]];     // <memory> is mapped to 0x1000.
         */
-        casex(haddr_s[15:0])
-            'h0000:hrdata_s <= reg_ctrl;
-            'h0004:hrdata_s <= reg_dec_ratio;
-            'h1000:hrdata_s <= reg_trunc_intg_0;
-            'h1004:hrdata_s <= reg_trunc_intg_1;
+        casex(haddr_last)
+            'h0000:hrdata_s  = reg_ctrl;
+            default:hrdata_s = reg_ctrl;
         endcase
     end
     endtask
@@ -98,15 +87,11 @@
             'h1xxx:<memory>[haddr_s[15:0]] <= hwdata_s;
         */
         casex(haddr_last[15:0])
-        'h0000:reg_ctrl         <= hwdata_s;
-        'h0004:reg_dec_ratio    <= hwdata_s;
-        'h1000:reg_trunc_intg_0 <= hwdata_s;
-        'h1004:reg_trunc_intg_1 <= hwdata_s;
+            'h0000:reg_ctrl <= hwdata_s;
+            // The buffers are written in combiational blocks
         endcase
     end
     endtask
-
-    assign ahb_writeable = 1'b1;
 
     task reg_reset_ahb();
     begin
@@ -121,10 +106,7 @@
                   A large memory block with a reset will be synthized into a SSRAM composing by
                   lots of registers and LUTs.
         */
-        reg_ctrl         <= 0;
-        reg_dec_ratio    <= 0;
-        reg_trunc_intg_0 <= 0;
-        reg_trunc_intg_1 <= 0;
+        reg_ctrl <= 32'h0000_0001;
     end
     endtask
 
@@ -139,11 +121,12 @@
                 if(<DONE_CONDITION>)
                     reg_stat[1] <= 1'b1;
         */
-        // Add your code here
     end
     endtask
 
     // ---------------------- Please DO NOT modify below this line ---------------------- 
+
+    wire ahb_pause = (htrans_s == 2'b00) || (htrans_s == 2'b01);
 
     // AHB FSM
     localparam  AHB_IDLE  = 2'b00;
@@ -155,20 +138,16 @@
 
     task ahb_transcation();
     begin
-        if(hwrite_s)
-            ahb_stat <= AHB_WRITE;
-        else begin
-            // Fetch data from read buffer
-            if((haddr_last == haddr_s) && ahb_writeable)
-                hrdata_s <= hwdata_s;
+        if(!ahb_pause) begin
+            if(hwrite_s)
+                ahb_stat <= AHB_WRITE;
             else
-                reg_read_ahb();
+                ahb_stat <= AHB_READ;
 
-            ahb_stat <= AHB_READ;
+            // Record last address and data
+            haddr_last  <= haddr_s[15:0];
+            hwrite_last <= hwrite_s;
         end
-
-        // Record last address and data
-        haddr_last  <= haddr_s;
     end
     endtask
 
@@ -176,7 +155,7 @@
         if(!reset_n) begin
             // Reset AHB interface
             haddr_last  <= 0;
-            hrdata_s    <= 'h0;
+            hwrite_last <= 1'b0;
 
             // Reset registers
             reg_reset_ahb();
@@ -184,17 +163,13 @@
             ahb_stat <= AHB_IDLE;
         end
         else begin
-        if(ce) begin
             case(ahb_stat)
                 AHB_IDLE, AHB_READ:begin
                     // Nothing to do
-                    if(hsel_s) begin
+                    if(hsel_s)
                         ahb_transcation();
-                    end
-                    else begin
-                        ahb_stat <= AHB_IDLE;
-                        reg_update_ahb();
-                    end
+
+                    reg_update_ahb();
                 end
                 AHB_WRITE:begin
                     reg_write_ahb();
@@ -202,8 +177,9 @@
                     if(hsel_s) begin
                         ahb_transcation();
                     end
-                    else
+                    else begin
                         ahb_stat <= AHB_IDLE;
+                    end
                 end
                 AHB_ERROR:begin
                     ahb_stat <= AHB_IDLE;
@@ -211,26 +187,56 @@
             endcase
         end
     end
-    end
 
     always @(*) begin
         case(ahb_stat)
-            AHB_IDLE, AHB_READ:begin
+            AHB_IDLE:begin
+                hrdata_s    = 0;
+
                 hreadyout_s = 1'b1;
                 hresp_s     = 1'b0;
+
+                coeff_we = 1'b0;
+            end
+            AHB_READ:begin
+                casex(haddr_last)
+                'h0000:hrdata_s  = reg_ctrl;
+                // Buffers are read-only
+                default:hrdata_s = reg_ctrl;
+                endcase
+
+                hreadyout_s = 1'b1;
+                hresp_s     = 1'b0;
+
+                coeff_we = 1'b0;
             end
             AHB_WRITE:begin
+                hrdata_s    = 0;
+
                 hresp_s     = 1'b0;
                 hreadyout_s = 1'b1;
+
+                if(ahb_pause)
+                    coeff_we = 1'b0;
+                else
+                    coeff_we = (haddr_last[15:9] == 'b0001_01);
             end
             AHB_ERROR:begin
+                hrdata_s    = 0;
+
                 // Error stage 1
                 hresp_s     = 1'b1;
                 hreadyout_s = 1'b0;
+
+                coeff_we = 1'b0;
             end
             default:begin
+                hrdata_s    = 0;
+
                 hresp_s     = 1'b0;
                 hreadyout_s = 1'b1;
+
+                coeff_we = 1'b0;
             end
         endcase
     end

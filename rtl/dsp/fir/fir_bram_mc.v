@@ -18,11 +18,8 @@
     limitations under the License.
 */
 module fir_bram_mc #(
-    parameter DW = 16,
-
-    // AHB Bus address
-    parameter BUS_ADDR    = 32'h0000_0001,
-    parameter BUS_PERI_AW = 8
+    parameter DW       = 16,
+    parameter MEM_FILE = "test.mem"
 ) (
     // Global clock and reset
     input  wire clk,
@@ -30,13 +27,13 @@ module fir_bram_mc #(
     input  wire ce,
 
     // AXI-Stream interface
-    input  wire [2*DW-1:0] tdata_s,
-    input  wire            tvalid_s,
-    output reg             tready_s,
+    input  wire [DW-1:0] tdata_s,
+    input  wire          tvalid_s,
+    output reg           tready_s,
 
-    output reg  [2*DW-1:0] tdata_m,
-    output reg             tvalid_m,
-    input  wire            tready_m,
+    output reg  [DW-1:0] tdata_m,
+    output reg           tvalid_m,
+    input  wire          tready_m,
 
     // AHB Control Interface
     // HCLK, HRESETn are combined into global signals.
@@ -53,127 +50,65 @@ module fir_bram_mc #(
     input  wire            hwrite_s,
 
     output reg  [31:0]     hrdata_s,
-    output reg  [31:0]     hreadyout_s,
+    output reg             hreadyout_s,
     output reg             hresp_s,
     // Exlusive transfer is not available, thus HEXOKAY signal is not used.
 
-    // Output fields
-    output wire [15:0] rate,
-    output wire        enable
+    input  wire            hsel_s
 );
 
-    // Register interface
-    // AHB FSM
-    localparam AHB_IDLE = 2'b00;
-    localparam AHB_NONSEQ = 2'b10;
-    localparam AHB_BUSY = 2'b01;
-    localparam AHB_SEQ = 2'b11;
+    // Interface signals
+    reg [31:0] haddr_last;
 
-    // FSM state signals
-    reg  [1:0]  stat;
-    reg         wr;
+    // Registers
+    reg  [31:0] reg_ctrl;
 
-    // Register access signals
-    reg  [3:0]  wstrb;       // Strobe signal
+    reg                coeff_we;
+    reg  signed [15:0] rd_coeff;
 
-    // Address and strobe decoder
-    always @(*) begin
-        case(hsize_s)
-        3'b000:begin
-            // Byte (8b)
-            case(haddr_s[1:0])
-                2'b00:wstrb = 4'b0001;
-                2'b01:wstrb = 4'b0010;
-                2'b10:wstrb = 4'b0100;
-                2'b11:wstrb = 4'b1000;
-                default:wstrb = 4'b0000;
-            endcase
-            end
-        3'b001:begin
-            // Halfword (16b)
-            case(haddr_s[1:0])
-                2'b00:wstrb = 4'b0011;
-                2'b10:wstrb = 4'b1100;
-                default:wstrb = 4'b0000;
-            endcase
-        end
-        3'b010:wstrb = 4'b1111;
-        default:wstrb = 4'b0000;
-        endcase
+    // Coefficient buffer
+    reg  [15:0] coeffs  [0:1023];
+    initial begin
+        $readmemh(MEM_FILE, coeffs);    
     end
+
+    reg  [9:0] wr_ptr, rd_ptr;
 
     always @(posedge clk, negedge reset_n) begin
-        if(!reset_n) begin
-            stat <= 2'b00;
-            wr   <= 1'b0;
-        end
+        if(!reset_n)
+            rd_coeff <= 0;
         else begin
-        if(ce) begin
-            case(htrans_s)
-            AHB_NONSEQ, AHB_SEQ:begin
-                if(hwrite_s)
-                    write(haddr_s, hwdata_s, wstrb);
-                else
-                    read(haddr_s, hrdata_s);
-            end
-            endcase
-        end
+            if(coeff_we)
+                coeffs[haddr_last[9:1]] <= hwdata_s[15:0];
+
+            rd_coeff <= coeffs[rd_ptr];
         end
     end
-
-    // Define registers
-    reg  [31:0] reg_ctrl;
-    reg  [31:0] coeffs[0:511];
-
-    // Read/Write
-    task write( 
-        input  [15:0] addr,
-        input  [31:0] data,
-        input  [3:0]  strb
-    );
-    begin
-        casex(addr)
-            16'h0000:reg_ctrl <= data;
-            16'h1xxx:coeffs[addr[10:2]] <= data;
-        endcase
-    end
-    endtask
-
-    task read(
-        input  [15:0] addr,
-        output [31:0] data
-    );
-    begin
-        case(addr)
-            16'h000:data <= reg_ctrl;
-        endcase
-    end
-    endtask
 
     // Fields
-    assign enable = reg_ctrl[0];
-    assign rate   = reg_ctrl[31:16];
+    wire        enable = reg_ctrl[0];
+    wire [15:0] rate   = reg_ctrl[31:16];
 
     // FIR Filter
-    reg  [9:0] wr_ptr, rd_ptr;
     reg  [9:0] cycle;
 
     reg         [15:0] buffer[0:1023];
     reg  signed [15:0] rd_data;     // Buffer read data
-    reg  signed [15:0] rd_coeff;    // Coefficient read data
     reg  signed [31:0] acc;         // Accumulator
 
     always @(posedge clk, negedge reset_n) begin
         if(!reset_n) begin
             wr_ptr <= 10'h0;
-            rd_ptr <= 10'h0;
+            rd_ptr <= 10'h1;
+
+            acc    <= 0;
 
             cycle  <= 10'h0;
         end
         else begin
         if(ce && enable && tready_s) begin
-            if (rd_ptr == wr_ptr - 1) begin
-                if(wr_ptr == rate)
+            if ( (rd_ptr == wr_ptr - 1) || ((rd_ptr == rate - 1) && (wr_ptr == 0)) ) begin
+                if(wr_ptr == rate - 1)
                     wr_ptr <= 10'h0;
                 else
                     wr_ptr <= wr_ptr + 1;
@@ -181,24 +116,22 @@ module fir_bram_mc #(
                 rd_ptr <= wr_ptr + 1;
             end
             else begin
-                if(rd_ptr == rate)
+                if(rd_ptr >= rate - 1)
                     rd_ptr <= 10'h0;
                 else
                     rd_ptr <= rd_ptr + 1;
+
+                if(wr_ptr >= rate - 1)
+                    wr_ptr <= 10'h0;
             end
 
-            // Read coeff from coeff RAM
-            if(rd_ptr[0])
-                rd_coeff <= coeffs[rd_ptr[9:1]][15:0];      // Use low 16bits of coefficient at even pointers
-            else
-                rd_coeff <= coeffs[rd_ptr[9:1]][31:16];     // Use low 16bits of coefficient at odd pointers
-
             // Read data from buffer
-            rd_data <= buffer[rd_ptr];
+            rd_data  <= buffer[rd_ptr];
+            buffer[wr_ptr] <= tdata_s;
 
             // Calculate and accumulate
-            if(rd_ptr == wr_ptr)
-                acc <= 0;
+            if((rd_ptr == wr_ptr + 1) || ((wr_ptr == 15) && (rd_ptr == 0)))
+                acc <= rd_data * rd_coeff;
             else
                 acc <= rd_data * rd_coeff + acc;
         end
@@ -210,14 +143,15 @@ module fir_bram_mc #(
         if(!reset_n) begin
             tdata_m  <= 0;
             tvalid_m <= 1'b0;
+            tready_s <= 1'b1;
         end
         else begin
         if(ce) begin
             // Check if the decimator is enabled
             if(enable) begin
                 // Output if read pointer equals to write pointer.
-                if(rd_ptr == wr_ptr) begin
-                    tdata_m  <= acc;
+                if((rd_ptr == wr_ptr + 1) || ((wr_ptr == 15) && (rd_ptr == 0))) begin
+                    tdata_m  <= acc[31:16];             // Q15
                     tvalid_m <= 1'b1;
                 end
                 else
@@ -233,4 +167,6 @@ module fir_bram_mc #(
         end
         end
     end
+
+    `include "ahb_intf_fir.v"
 endmodule

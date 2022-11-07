@@ -78,9 +78,9 @@ module prominence_analysis #(
                 diff_last   <= diff;
                 val_last    <= tdata_s;
                 val_last_1  <= val_last;
-
-                frame_start <= tuser_s;
             end
+
+            frame_start <= tuser_s && tvalid_s && tready_s;
         end
         end
     end
@@ -411,11 +411,10 @@ module prominence_analysis #(
         else begin
         if(ce) begin
             buffer_rdata_i <= prom_buff[buffer_addr_i];
+            buffer_rdata_m <= prom_buff[buffer_addr_m];
             
             if(buffer_wr_m)
                 prom_buff[buffer_addr_m] <= buffer_wdata_m;
-            else
-                buffer_rdata_m <= prom_buff[buffer_addr_m];
         end
         end
     end

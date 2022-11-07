@@ -1,12 +1,12 @@
 % CIC and CIC Compensation Filter Designer
 % CIC parameters
 samplerate = 20000000; % Sample rate
-ratio = 512; % Decimator factor
+ratio = 16; % Decimator factor
 delay = 2;  % Differential delay
 stages = 5;  % Filter Stages
 
 % Compensation filter parameters
-order = 64;         % Compensation filter order
+order = 16;         % Compensation filter order
 freq_pass = samplerate * 0.5 / (ratio * 2);   % Passband frequency
 freq_pass_given = samplerate * 0.8 / (ratio * 2);
 freq_stop = samplerate / (ratio * 2);  % Stopband frequency
@@ -14,14 +14,13 @@ attn_pass = 0.1;    % Passband attenuation
 attn_stop = 40;     % Stopband attenuation
 
 fraction_bits = 16; % Fraction bits
-filename = 'compansation_8.mem';
+filename = 'compansation_16.mem';
 
 % Calculation
 cic_filter = dsp.CICDecimator(ratio, delay, stages);
-
 cic_comp_filter = dsp.CICCompensationDecimator(cic_filter, ...
     'DecimationFactor', 1, ...
-    'PassbandFrequency', freq_pass_given, ...
+    'StopbandFrequency', freq_stop, ...
     'SampleRate', samplerate / ratio, ...
     'DesignForMinimumOrder', false, ...
     'FilterOrder', order - 1);

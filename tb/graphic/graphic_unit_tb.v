@@ -16,7 +16,7 @@ module graphic_unit_tb ();
     wire        tlast;
     wire        tuser;
     wire        tvalid;
-    wire        tready = 1'b1;
+    wire        tready;
 
     wire [31:0] haddr;
     wire [2:0]  hburst;
@@ -85,6 +85,26 @@ module graphic_unit_tb ();
         .tuser_m   (tuser ),
         .tvalid_m  (tvalid ),
         .tready_m  (tready)
+    );
+  
+    stream_2_video_out vout (
+      .clk     (clk ),
+      .reset_n (reset_n ),
+
+      .tdata_s  (tdata ),
+      .tlast_s  (tlast ),
+      .tuser_s  (tuser ),
+      .tvalid_s (tvalid ),
+      .tready_s (tready ),
+
+      .video_r      ( ),
+      .video_b      ( ),
+      .video_g      ( ),
+      .hsync        ( ),
+      .vsync        ( ),
+      .hblank       ( ),
+      .vblank       ( ),
+      .active_video ( )
     );
   
 

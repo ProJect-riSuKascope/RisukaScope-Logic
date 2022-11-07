@@ -32,25 +32,7 @@ module graphic_subsys_test_wrapper (
     output wire            tmds_clk_p,
     output wire            tmds_clk_n,
     output wire [2:0]      tmds_data_p,
-    output wire [2:0]      tmds_data_n,
-
-    // DDR3 MIF
-    // DDR3 memory interface
-    output wire [13:0]     ddr_addr_o,
-    output wire [2:0]      ddr_ba_o,
-    output wire            ddr_cs_n_o,
-    output wire            ddr_ras_n_o,
-    output wire            ddr_cas_n_o,
-    output wire            ddr_we_n_o,
-    output wire            ddr_clk_o,
-    output wire            ddr_clk_n_o,
-    output wire            ddr_cke_o,
-    output wire            ddr_odt_o,
-    output wire            ddr_reset_n_o,
-    output wire [1:0]      ddr_dqm_o,
-    inout  wire [15:0]     ddr_dq_io,
-    inout  wire [1:0]      ddr_dqs_io,
-    inout  wire [1:0]      ddr_dqs_n_io
+    output wire [2:0]      tmds_data_n
 );
 
     // System PLL
@@ -63,48 +45,32 @@ module graphic_subsys_test_wrapper (
     */
 
     graphic_subsystem dut (
-      .hclk    (clk_sys ),
-      .hresetn (reset_n ),
+        .hclk    (clk_sys ),
+        .hresetn (reset_n ),
 
-      .haddr_s  (0 ),
-      .hburst_s (3'b000 ),
-      .hsize_s  (3'b000 ),
-      .htrans_s (2'b00 ),
-      .hwdata_s (0 ),
-      .hwrite_s (1'b0 ),
+        .haddr_s  (0 ),
+        .hburst_s (3'b000 ),
+        .hsize_s  (3'b000 ),
+        .htrans_s (2'b00 ),
+        .hwdata_s (0 ),
+        .hwrite_s (1'b0 ),
 
-      .hrdata_s    ( ),
-      .hreadyout_s ( ),
-      .hresp_s     ( ),
+        .hrdata_s    ( ),
+        .hreadyout_s ( ),
+        .hresp_s     ( ),
 
-      .hsel_s (1'b0 ),
+        .hsel_s (1'b0 ),
 
-      .vout_r      (vout_r ),
-      .vout_g      (vout_g ),
-      .vout_b      (vout_b ),
-      .vout_hsync  (vout_hsync ),
-      .vout_vsync  (vout_vsync ),
-      .vout_active (vout_active ),
+        .vout_r      (vout_r ),
+        .vout_g      (vout_g ),
+        .vout_b      (vout_b ),
+        .vout_hsync  (vout_hsync ),
+        .vout_vsync  (vout_vsync ),
+        .vout_active (vout_active ),
 
-      .tmds_clk_p  (tmds_clk_p ),
-      .tmds_clk_n  (tmds_clk_n ),
-      .tmds_data_p (tmds_data_p ),
-      .tmds_data_n (tmds_data_n ),
-
-      .ddr_addr_o    (ddr_addr_o ),
-      .ddr_ba_o      (ddr_ba_o ),
-      .ddr_cs_n_o    (ddr_cs_n_o ),
-      .ddr_ras_n_o   (ddr_ras_n_o ),
-      .ddr_cas_n_o   (ddr_cas_n_o ),
-      .ddr_we_n_o    (ddr_we_n_o ),
-      .ddr_clk_o     (ddr_clk_o ),
-      .ddr_clk_n_o   (ddr_clk_n_o ),
-      .ddr_cke_o     (ddr_cke_o ),
-      .ddr_odt_o     (ddr_odt_o ),
-      .ddr_reset_n_o (ddr_reset_n_o ),
-      .ddr_dqm_o     (ddr_dqm_o ),
-      .ddr_dq_io     (ddr_dq_io ),
-      .ddr_dqs_io    (ddr_dqs_io ),
-      .ddr_dqs_n_io  (ddr_dqs_n_io )
+        .tmds_clk_p  (tmds_clk_p ),
+        .tmds_clk_n  (tmds_clk_n ),
+        .tmds_data_p (tmds_data_p ),
+        .tmds_data_n (tmds_data_n )
     );
 endmodule

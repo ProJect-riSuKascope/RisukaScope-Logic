@@ -7,10 +7,11 @@ module stream_2_video_out (
     input  wire reset_n,
 
     // AXI-Stream video data input
-    input  wire [15:0] sdata,
-    output wire        snextframe,
-    output reg         sfetch,
-    input  wire        svalid,
+    input  wire [15:0] tdata_s,
+    output wire        tlast_s,
+    input  wire        tuser_s,
+    input  wire        tvalid_s,
+    output reg         tready_s,
 
     // Video output
     output reg  [4:0]  video_r,
@@ -25,10 +26,10 @@ module stream_2_video_out (
 
     // Display paramerters
     localparam PIX_H_FPORCH = 24;
-    localparam PIX_H_BPORCH = 160;
+    localparam PIX_H_BPORCH = 144;
     localparam PIX_H_SYNC   = 136;
     localparam PIX_H_ACTIVE = 1024;
-    localparam PIX_H_TOTAL  = 1344;
+    localparam PIX_H_TOTAL  = 1328;
 
     localparam PIX_V_FPORCH = 3;
     localparam PIX_V_BPORCH = 29;
@@ -104,26 +105,10 @@ module stream_2_video_out (
         else
             vblank = 1'b0;
 
-        video_g = sdata[5:0];
-        video_b = sdata[10:6];
-        video_r = sdata[15:11];
+        video_g = tdata_s[5:0];
+        video_b = tdata_s[10:6];
+        video_r = tdata_s[15:11];
+
+        tready_s = active_video;
     end
-
-    // Video fetch interface
-    always @(posedge clk, negedge reset_n) begin
-        if(!reset_n) begin
-            sfetch <= 1'b0;
-        end
-        else begin
-            if((y == PIX_V_TOTAL - 1) && (x == PIX_H_TOTAL - 2))
-                sfetch <= 1'b1;
-            else begin
-                if((y == PIX_V_ACTIVE - 1) && (x == PIX_H_TOTAL - 2))
-                    sfetch <= 1'b0;
-            end
-
-        end
-    end
-
-    assign snextframe = ~vsync;
 endmodule

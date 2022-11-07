@@ -421,6 +421,7 @@ module graphic_generator#(
     end
 
     // Instruction FSM
+    wire        write_done;
     reg  [3:0]  stat;
 
     localparam STAT_IDLE  = 3'b000;
@@ -431,11 +432,6 @@ module graphic_generator#(
     localparam STAT_WRITE = 3'b101;
     localparam STAT_START = 3'b110;
 
-    // Line buffer
-    reg  [15:0] line_buffer [0:2047];
-
-    reg  [11:0] hori_cnt;
-
     always @(posedge hclk, negedge hresetn) begin
         if(!hresetn) begin
             pc <= 9'h0;
@@ -444,10 +440,6 @@ module graphic_generator#(
             word_0 <= 32'h0;
             word_1 <= 32'h0;
             word_2 <= 32'h0;
-
-            hori_cnt <= 0;
-
-            tdata_m  <= 16'h0;
 
             stat <= STAT_IDLE;
         end
@@ -461,15 +453,11 @@ module graphic_generator#(
                 word_0 <= inst[pc];
                 pc     <= pc + 1;
                 stat   <= STAT_FECH1;
-                hori_cnt <= 0;
             end
             STAT_FECH1:begin
                 if(opcode == 3'b100) begin         // Return
                     pc     <= jmp_dest;
                     stat   <= STAT_FECH0;
-                end
-                else if(opcode == 3'b101) begin
-                    stat   <= STAT_WRITE;
                 end
                 else begin
                     if((y >= y0) && (y < y1)) begin      // y in range
@@ -491,28 +479,17 @@ module graphic_generator#(
             end
             STAT_START:stat <= STAT_WAIT;
             STAT_WAIT:begin
-                if(done) begin
-                    stat     <= STAT_FECH0;
-                end
-
-                // Line buffer write
-                if(line_wr_en)
-                    line_buffer[line_wr_x] <= line_wr_d;
+                if(done)
+                    stat <= STAT_FECH0;
             end
-            STAT_WRITE:begin
-                if(tvalid_m && tready_m) begin
-                    if(hori_cnt == ACTIVE_HORI - 1) begin
-                        if(y == ACTIVE_VERT - 1)
-                            y <= 0;
-                        else
-                            y <= y + 1;
-
-                        stat <= STAT_FECH0;
-                    end
+            STAT_WRITE:begin            // Wait if the last line is finished
+                if(write_done) begin
+                    if(y == ACTIVE_VERT - 1)
+                        y <= 0;
                     else
-                        hori_cnt <= hori_cnt + 1;
+                        y <= y + 1;
 
-                    tdata_m  <= line_buffer[hori_cnt];
+                    stat <= STAT_FECH0;
                 end
             end
             endcase
@@ -522,51 +499,85 @@ module graphic_generator#(
     always @(*) begin
         case(stat)
         STAT_IDLE, STAT_FECH0, STAT_FECH1, STAT_FECH2:begin
-            // Control
             inst_start = 1'b0;
-
-            // AXI-Stream interface
-            tlast_m    = 1'b0;
-            tuser_m    = 1'b0;
-            tvalid_m   = 1'b0;
         end
         STAT_START:begin
-            // Control
             inst_start = 1'b1;
-
-            // AXI-Stream interface
-            tlast_m  = 1'b0;
-            tuser_m  = 1'b0;
-            tvalid_m = 1'b0;
         end
         STAT_WAIT:begin
-            // Control
             inst_start = 1'b0;
-
-            // AXI-Stream interface
-            tlast_m  = 1'b0;
-            tuser_m  = 1'b0;
-            tvalid_m = 1'b0;
         end
         STAT_WRITE:begin
-            // Control
             inst_start = 1'b0;
-
-            // AXI-Stream interface
-            tlast_m  = (hori_cnt == ACTIVE_HORI - 1);
-            tuser_m  = (y == 0) && (hori_cnt == 0);
-            tvalid_m = 1'b1;
         end
         default:begin
-            // Control
             inst_start = 1'b0;
-
-            // AXI-Stream interface
-            tlast_m    = 1'b0;
-            tuser_m    = 1'b0;
-            tvalid_m   = 1'b0;
         end
         endcase
+    end
+
+    // Ping-pong line buffer
+    // Line buffer
+    reg  [15:0] line_buffer_0 [0:2047];
+    reg  [15:0] line_buffer_1 [0:2047];
+
+    reg  [15:0] line_buffer_0_r, line_buffer_1_r;
+    wire        line_buffer_0_we, line_buffer_1_we;
+    wire [11:0] line_buffer_ar;
+
+    always @(posedge hclk, negedge hresetn) begin
+        if(!hresetn) begin
+            line_buffer_0_r <= 0;
+            line_buffer_1_r <= 0;
+        end
+        else begin
+            // Line buffer write
+            if(line_buffer_0_we)
+                line_buffer_0[line_wr_x] <= line_wr_d;
+            if(line_buffer_1_we)
+                line_buffer_1[line_wr_x] <= line_wr_d;
+
+            line_buffer_0_r <= line_buffer_0[line_buffer_ar];
+            line_buffer_1_r <= line_buffer_1[line_buffer_ar];
+        end
+    end
+
+    // Line output
+    reg         pp_sel;
+    assign line_buffer_0_we = pp_sel && line_wr_en;
+    assign line_buffer_1_we = (~pp_sel) && line_wr_en;
+
+    reg  [11:0] hori_cnt;
+    assign line_buffer_ar = hori_cnt;
+    assign write_done     = (hori_cnt == ACTIVE_HORI - 1);
+
+    always @(posedge hclk, negedge hresetn) begin
+        if(!hresetn) begin
+            pp_sel   <= 1'b0;
+            hori_cnt <= 0;
+        end
+        else begin
+            if(tvalid_m && tready_m) begin
+                if(hori_cnt == ACTIVE_HORI - 1) begin
+                    hori_cnt <= 0;
+                    pp_sel   <= ~pp_sel;
+                end
+                else
+                    hori_cnt <= hori_cnt + 1;
+            end
+        end
+    end
+
+    always @(*) begin
+        if(pp_sel)
+            tdata_m = line_buffer_1_r;
+        else
+            tdata_m = line_buffer_0_r;
+
+        tlast_m  = (hori_cnt == ACTIVE_HORI - 1);
+
+        tvalid_m = 1'b1;
+        tuser_m  = (hori_cnt == 0) && (y == 0);
     end
 
     `include "ahb_intf_graph_gen.v"

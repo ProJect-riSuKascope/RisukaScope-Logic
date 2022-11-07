@@ -54,14 +54,16 @@ module graphic_subsys_test_wrapper (
 );
 
     // System PLL
-    wire hclk;
+    wire hclk = clk_sys;
+    /*
     pll_sys sys_pll(
         .clkin (clk_sys),
         .clkout(hclk)
     );
+    */
 
     graphic_subsystem dut (
-      .hclk    (hclk ),
+      .hclk    (clk_sys ),
       .hresetn (reset_n ),
 
       .haddr_s  (0 ),

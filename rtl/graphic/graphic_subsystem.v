@@ -87,10 +87,10 @@ module graphic_subsystem (
     wire         tready_video;
 
     graphic_generator #(
-        .MIF_INST    ("D:/Concordia_Projects/Project_PlatinumCollapsaR/fpga/rtl/graphic/graph_inst_compiler.mem"),
-        .MIF_PALETTE ("D:/Concordia_Projects/Project_PlatinumCollapsaR/fpga/data/palette.mem"),
-        .MIF_STRING  (""),
-        .MIF_CHART   ("")
+        .MIF_INST("D:/Concordia_Projects/Project_PlatinumCollapsaR/fpga/rtl/graphic/graph_inst_compiler/inst.mem"),
+        .MIF_STRING("D:/Concordia_Projects/Project_PlatinumCollapsaR/fpga/rtl/graphic/graph_inst_compiler/data.mem"),
+        .MIF_CHART("D:/Concordia_Projects/Project_PlatinumCollapsaR/fpga/rtl/graphic/graph_inst_compiler/chart.mem"),
+        .MIF_PALETTE("D:/Concordia_Projects/Project_PlatinumCollapsaR/fpga/data/palette.mem")
     ) gen_0(
       .hclk    (hclk ),
       .hresetn (hresetn ),
@@ -127,11 +127,18 @@ module graphic_subsystem (
     );
 
     // PLL for Video pixel
+    wire clk_serial;
     wire clk_pixel;
 
     pll_pixel clk_video_gen(
         .clkin (hclk),
-        .clkout(clk_pixel)
+        .clkout(clk_serial)
+    );
+
+    clk_div_pixel clk_div(
+        .clkout(clk_pixel), //output clkout
+        .hclkin(clk_serial), //input hclkin
+        .resetn(hresetn) //input resetn
     );
 
     // Internal clock for video components
@@ -299,6 +306,7 @@ module graphic_subsystem (
     hdmi_tx hdmi_tx_0(
 		.I_rst_n   (hresetn), //input I_rst_n
 		.I_rgb_clk (clk_pixel), //input I_rgb_clk
+        .I_serial_clk  (clk_serial    ),
 
         .I_rgb_r  (vout_r), //input [7:0] I_rgb_r
 		.I_rgb_g  (vout_g), //input [7:0] I_rgb_g

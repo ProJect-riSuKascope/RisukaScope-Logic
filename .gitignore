@@ -28,6 +28,7 @@ rtl/graphic/ip/vdma
 rtl/graphic/ip/ddr3_mif
 rtl/graphic/ip/pll_ddr3
 rtl/graphic/ip/pll_pixel
+rtl/graphic/ip/clk_div_pixel
 
 # MCU core
 rtl/mcu/ip/gowin_picorv32

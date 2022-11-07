@@ -2,6 +2,8 @@
     Graphic_unit_tb.v
     Testbench of graphic unit
 */
+`timescale 1ns/100ps
+
 module graphic_unit_tb ();
     // Parameters
 	localparam PERIOD_CLK = 10;
@@ -57,7 +59,10 @@ module graphic_unit_tb ();
     */
 
     graphic_generator #(
-        .INST_BUFFER_MIF("../rtl/graphic/graph_inst_compiler/inst.mem")
+        .MIF_INST("D:/Concordia_Projects/Project_PlatinumCollapsaR/fpga/rtl/graphic/graph_inst_compiler/inst.mem")
+        //.MIF_STRING("D:/Concordia_Projects/Project_PlatinumCollapsaR/fpga/rtl/graphic/graph_inst_compiler/data.mem"),
+        //.MIF_CHART("D:/Concordia_Projects/Project_PlatinumCollapsaR/fpga/rtl/graphic/graph_inst_compiler/chart.mem"),
+        //.MIF_PALETTE("D:/Concordia_Projects/Project_PlatinumCollapsaR/fpga/data/palette.mem")
     ) dut(
         .hclk    (clk ),
         .hresetn (reset_n ),

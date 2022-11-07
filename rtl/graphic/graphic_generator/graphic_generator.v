@@ -17,10 +17,10 @@
     limitations under the License.
 */
 module graphic_generator#(
-    parameter MIF_INST    = "inst.mem",
-    parameter MIF_PALETTE = "palette.mem",
-    parameter MIF_STRING  = "string.mem",
-    parameter MIF_CHART   = "chart.mem"
+    parameter MIF_INST    = "D:/Concordia_Projects/Project_PlatinumCollapsaR/fpga/rtl/graphic/graph_inst_compiler/inst.mem",
+    parameter MIF_PALETTE = "D:/Concordia_Projects/Project_PlatinumCollapsaR/fpga/data/palette.mem",
+    parameter MIF_STRING  = "D:/Concordia_Projects/Project_PlatinumCollapsaR/fpga/rtl/graphic/graph_inst_compiler/data.mem",
+    parameter MIF_CHART   = "D:/Concordia_Projects/Project_PlatinumCollapsaR/fpga/rtl/graphic/graph_inst_compiler/chart.mem"
 )(
     input  wire hclk,
     input  wire hresetn,

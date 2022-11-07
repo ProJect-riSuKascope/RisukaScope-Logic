@@ -24,17 +24,17 @@ module stream_2_video_out (
 );
 
     // Display paramerters
-    localparam PIX_H_FPORCH = 16;
-    localparam PIX_H_BPORCH = 48;
-    localparam PIX_H_SYNC   = 96;
-    localparam PIX_H_ACTIVE = 640;
-    localparam PIX_H_TOTAL  = 800;
+    localparam PIX_H_FPORCH = 24;
+    localparam PIX_H_BPORCH = 160;
+    localparam PIX_H_SYNC   = 136;
+    localparam PIX_H_ACTIVE = 1024;
+    localparam PIX_H_TOTAL  = 1344;
 
-    localparam PIX_V_FPORCH = 10;
-    localparam PIX_V_BPORCH = 33;
-    localparam PIX_V_SYNC   = 2;
-    localparam PIX_V_ACTIVE = 480;
-    localparam PIX_V_TOTAL  = 525;
+    localparam PIX_V_FPORCH = 3;
+    localparam PIX_V_BPORCH = 29;
+    localparam PIX_V_SYNC   = 6;
+    localparam PIX_V_ACTIVE = 768;
+    localparam PIX_V_TOTAL  = 806;
 
     // Derived timing parameters
     localparam HFPCH_START = PIX_H_ACTIVE;

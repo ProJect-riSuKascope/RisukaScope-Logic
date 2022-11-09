@@ -172,7 +172,7 @@ module cic_decimator_varialble_ahb(
         if(!reset_n)
             cycle <= 0;
         else begin
-            if(cycle == reg_dec_ratio - 1)
+            if(cycle >= reg_dec_ratio - 1)
                 cycle <= 0;
             else
                 cycle <= cycle + 1;

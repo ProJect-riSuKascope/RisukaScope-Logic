@@ -18,7 +18,7 @@
 */
 `timescale 1ns/100ps
 
-module fft_tb();
+module fft_window_tb();
     // Parameters
     localparam PERIOD_CLK = 10;
 
@@ -31,12 +31,6 @@ module fft_tb();
     wire        tuser;
     wire        tvalid;
     wire        tready;
-
-    wire [15:0] tdata_w;
-    wire        tlast_w;
-    wire        tuser_w;
-    wire        tvalid_w;
-    wire        tready_w;
 
     wire [31:0] haddr;
     wire [2:0]  hburst;
@@ -51,11 +45,11 @@ module fft_tb();
     wire        hsel;
     assign      hsel = (haddr[31:16] == 16'h0000);
 
-    fft_window#(
+	fft_window#(
         .DW(16),
         .MEM_FILE("../data/fft_window_hamming.mem"),
         .DATA_CNT(1024)
-    ) fftw (
+    ) dut (
 		.clk (clk ),
 		.reset_n (reset_n ),
 
@@ -64,24 +58,6 @@ module fft_tb();
 		.tlast_s  (tlast ),
 		.tvalid_s (tvalid ),
 		.tready_s (tready ),
-
-		.tdata_m   (tdata_w ),
-		.tuser_m   (tuser_w ),
-		.tlast_m   (tlast_w ),
-		.tvalid_m  (tvalid_w),
-		.tready_m  (tready_w)
-	);
-
-	fft_wrapper fft (
-		.clk (clk ),
-		.reset_n (reset_n ),
-		.ce (1'b1 ),
-
-		.tdata_s  (tdata_w ),
-		.tuser_s  (tuser_w ),
-		.tlast_s  (tlast_w ),
-		.tvalid_s (tvalid_w ),
-		.tready_s (tready_w ),
 
 		.tdata_m   ( ),
 		.tuser_m   ( ),

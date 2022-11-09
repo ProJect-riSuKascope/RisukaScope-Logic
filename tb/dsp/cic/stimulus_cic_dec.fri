@@ -23,10 +23,10 @@ R 0x00001000 0x00000000 word sing P0000 nolock okay
 R 0x00001004 0x00000000 word sing P0000 nolock okay
 
 C "Writing config parameters"
-W 0x00001000 0x03020404 word sing P0000 nolock okay
-W 0x00001004 0x00000001 word sing P0000 nolock okay
-W 0x00000004 0x00000008 word sing P0000 nolock okay
-W 0x00000000 0x00000002 word sing P0000 nolock okay
+W 0x00001000 0x05040606 word sing P0000 nolock okay
+W 0x00001004 0x00000002 word sing P0000 nolock okay
+W 0x00000004 0x00000020 word sing P0000 nolock okay
+W 0x00000000 0x00000003 word sing P0000 nolock okay
 L 10000
 
 C "Done."

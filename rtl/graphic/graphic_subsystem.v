@@ -140,8 +140,11 @@ module graphic_subsystem (
 		.I_rgb_clk (clk_pixel), //input I_rgb_clk
 
         .I_rgb_r  ({vout_r, 3'd0}), //input [7:0] I_rgb_r
-		.I_rgb_g  ({vout_g, 2'd0}), //input [7:0] I_rgb_g
+		.I_rgb_g  ({vout_g, 3'd0}), //input [7:0] I_rgb_g
 		.I_rgb_b  ({vout_b, 3'd0}), //input [7:0] I_rgb_b
+//        .I_rgb_r  (vout_r), //input [7:0] I_rgb_r
+//		.I_rgb_g  (vout_g), //input [7:0] I_rgb_g
+//		.I_rgb_b  (vout_b), //input [7:0] I_rgb_b
 		.I_rgb_vs (vout_vsync), //input I_rgb_vs
 		.I_rgb_hs (vout_hsync), //input I_rgb_hs
 		.I_rgb_de (vout_active), //input I_rgb_de

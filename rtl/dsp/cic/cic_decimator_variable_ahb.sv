@@ -16,9 +16,9 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 */
-import buses::axi_bus;
-
 package dsp;
+	import internal_bus::axi_lite_bus;
+
 	module cic_decimator_varialble_ahb(
 		// Clock and reset
 		input  wire clk,
@@ -26,16 +26,18 @@ package dsp;
 		input  wire ce,
 
 		// AXI-Stream I/O
-		input  wire [15:0] tdata_s,
-		input  wire        tvalid_s,
-		output wire        tready_s,
+		axi_stream_bus.slave axis_input(
+			.aclk(clk),
+			.aresetn(reset_n)
+		),
 
-		output reg  [15:0] tdata_m,
-		output reg         tvalid_m,
-		input  wire        tready_m,
+		axi_stream_bus.master axis_output(
+			.aclk(clk),
+			.aresetn(reset_n)
+		),
 
 		// AXI control interface
-		axi_bus.slave interf(
+		axi_lite_bus.slave axilite_ctrl(
 			.aclk(clk),
 			.aresetn(reset_n)
 		)
@@ -71,11 +73,11 @@ package dsp;
 			proc_en    <= 1'b0;
 		end
 		else begin
-			if(tvalid_s && tready_s)
-			data_in <= tdata_s;
+			if(axis_input.tvalid && axis_input.tready)
+				data_in <= axis_input.tdata;
 
-			data_valid <= tvalid_s;
-			proc_en    <= tready_m;
+			data_valid <= axis_input.tvalid;
+			proc_en    <= axis_output.tready;
 		end
 		end
 
@@ -231,34 +233,51 @@ package dsp;
 
 		// AXI-Stream output
 		always @(*) begin
-		if(deci_enable)
-			tdata_m = d_9[19:4];
-		else
-			tdata_m = data_in;
+			if(deci_enable)
+				axis_output.tdata = d_9[19:4];
+			else
+				axis_output.tdata = data_in;
 
-		tvalid_m = resample_en;
+			axis_output.tvalid = resample_en;
 		end
 
-		// AXI FSM
-		localparam AXI_IDLE = 3'b000;
-		localparam AXI_AW   = 3'b001;
-		localparam AXI_W    = 3'b010;
-		localparam AXI_B    = 3'b011;
-		localparam AXI_AR   = 3'b100;
-		localparam AXI_R    = 3'b101;
-
-		always @(posedge intf.aclk, negedge intf.aresetn) begin
-			if(!intf.aresetn) begin
+		// AXI-Lite control interface
+		always @(posedge axilite_ctrl.aclk, negedge axilite_ctrl.aresetn) begin
+			if(!axilite_ctrl.aresetn) begin
 				reg_ctrl         <= 0;
 				reg_trunc_intg_0 <= 0;
 				reg_trunc_intg_1 <= 0;
 				reg_dec_ratio    <= 16'h0;
 			end
 			else begin
-				if(intf.awvalid && intf.awready) begin
-					
+				if(axilite_ctrl.wvalid && axilite_ctrl.wready) begin
+					case(axilite_ctrl.awaddr[15:0])
+						'h0000:reg_ctrl         <= axilite_ctrl.wdata;
+						'h0004:reg_dec_ratio    <= axilite_ctrl.wdata;
+						'h1000:reg_trunc_intg_0 <= axilite_ctrl.wdata;
+						'h1004:reg_trunc_intg_1 <= axilite_ctrl.wdata;
+					endcase
 				end
 			end
+		end
+
+		always @(*) begin
+			// Write
+			axilite_ctrl.awready = axilite_ctrl.awvalid && axilite_ctrl.wvalid;
+			axilite_ctrl.wready  = axilite_ctrl.awvalid && axilite_ctrl.wvalid;
+			axilite_ctrl.bvalid  = axilite_ctrl.wvalid && axilite_ctrl.wready;
+			axilite_ctrl.bresp   = 2'b00;
+
+			// Read
+			axilite_ctrl.arready = axilite_ctrl.arvalid;
+			axilite_ctrl.rvalid  = 1'b1;
+
+			case(axilite_ctrl.ardata[15:0])
+				'h0000:axilite_ctrl.rdata <= reg_ctrl;
+				'h0004:axilite_ctrl.rdata <= reg_dec_ratio;
+				'h1000:axilite_ctrl.rdata <= reg_trunc_intg_0;
+				'h1004:axilite_ctrl.rdata <= reg_trunc_intg_1;
+			endcase
 		end
 	endmodule
 endpackage

@@ -17,7 +17,7 @@
     limitations under the License.
 */
 package dsp;
-	import internal_bus::axi_lite_bus;
+	import internal_bus::*;
 
 	module cic_decimator_varialble_ahb(
 		// Clock and reset
